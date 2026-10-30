@@ -78,7 +78,7 @@ func (s *Server) getExchangeInvites(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, apitypes.ListExchangeInvitesResponse{
-		InviteEmails: result,
+		Invites: result,
 	})
 }
 
@@ -96,7 +96,7 @@ func (s *Server) createExchange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.exchanges.CreateExchange(r.Context(), user.ID, user.Email, req)
+	result, err := s.exchanges.CreateExchange(r.Context(), user.ID, req)
 	if errors.Is(err, exchanges.ErrInvalidName) {
 		writeError(w, http.StatusBadRequest, "Give your exchange a name")
 		return
@@ -107,10 +107,6 @@ func (s *Server) createExchange(w http.ResponseWriter, r *http.Request) {
 	}
 	if errors.Is(err, exchanges.ErrInvalidBudget) {
 		writeError(w, http.StatusBadRequest, "Budget must be zero or more")
-		return
-	}
-	if errors.Is(err, exchanges.ErrInvalidEmail) {
-		writeError(w, http.StatusBadRequest, "invalid email")
 		return
 	}
 	if err != nil {
@@ -136,7 +132,7 @@ func (s *Server) updateExchange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.exchanges.UpdateExchange(r.Context(), chi.URLParam(r, "exchangeID"), user.ID, user.Email, req)
+	result, err := s.exchanges.UpdateExchange(r.Context(), chi.URLParam(r, "exchangeID"), user.ID, req)
 	if errors.Is(err, exchanges.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "exchange not found")
 		return
@@ -151,10 +147,6 @@ func (s *Server) updateExchange(w http.ResponseWriter, r *http.Request) {
 	}
 	if errors.Is(err, exchanges.ErrInvalidBudget) {
 		writeError(w, http.StatusBadRequest, "Budget must be zero or more")
-		return
-	}
-	if errors.Is(err, exchanges.ErrInvalidEmail) {
-		writeError(w, http.StatusBadRequest, "invalid email")
 		return
 	}
 	if err != nil {
@@ -187,6 +179,100 @@ func (s *Server) deleteExchange(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, apitypes.StatusResponse{Status: "ok"})
 }
+func (s *Server) addExchangeInvite(w http.ResponseWriter, r *http.Request) {
+	var req apitypes.ExchangeInviteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+
+	user := UserFromContext(r.Context())
+	if user == nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	invite, created, err := s.exchanges.AddExchangeInvite(r.Context(), user.ID, user.Email, chi.URLParam(r, "exchangeID"), req.Email)
+	if errors.Is(err, exchanges.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "exchange not found")
+		return
+	}
+	if errors.Is(err, exchanges.ErrForbidden) {
+		writeError(w, http.StatusForbidden, "only the organizer can invite people")
+		return
+	}
+	if errors.Is(err, exchanges.ErrInvalidEmail) {
+		writeError(w, http.StatusBadRequest, "Enter an email address")
+		return
+	}
+	if errors.Is(err, exchanges.ErrInviteSelf) {
+		writeError(w, http.StatusBadRequest, "You can't invite yourself")
+		return
+	}
+	if errors.Is(err, exchanges.ErrAlreadyJoined) {
+		writeError(w, http.StatusConflict, "This person has already joined")
+		return
+	}
+	if err != nil {
+		log.Printf("add invite: %v", err)
+		writeError(w, http.StatusInternalServerError, "could not add invite")
+		return
+	}
+
+	status := http.StatusOK
+	if created {
+		status = http.StatusCreated
+	}
+	writeJSON(w, status, invite)
+}
+
+func (s *Server) revokeExchangeInvite(w http.ResponseWriter, r *http.Request) {
+	var req apitypes.ExchangeInviteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+
+	user := UserFromContext(r.Context())
+	if user == nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	invite, err := s.exchanges.RevokeExchangeInvite(r.Context(), user.ID, user.Email, chi.URLParam(r, "exchangeID"), req.Email)
+	if errors.Is(err, exchanges.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "exchange not found")
+		return
+	}
+	if errors.Is(err, exchanges.ErrForbidden) {
+		writeError(w, http.StatusForbidden, "only the organizer can revoke invites")
+		return
+	}
+	if errors.Is(err, exchanges.ErrInvalidEmail) {
+		writeError(w, http.StatusBadRequest, "Enter an email address")
+		return
+	}
+	if errors.Is(err, exchanges.ErrInviteSelf) {
+		writeError(w, http.StatusBadRequest, "You can't remove yourself")
+		return
+	}
+	if errors.Is(err, exchanges.ErrInviteNotFound) {
+		writeError(w, http.StatusNotFound, "invite not found")
+		return
+	}
+	if errors.Is(err, exchanges.ErrInviteDeclined) {
+		writeError(w, http.StatusConflict, "This person already declined")
+		return
+	}
+	if err != nil {
+		log.Printf("revoke invite: %v", err)
+		writeError(w, http.StatusInternalServerError, "could not revoke invite")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, invite)
+}
+
 func (s *Server) acceptExchangeInvite(w http.ResponseWriter, r *http.Request) {
 	// accept invite
 }

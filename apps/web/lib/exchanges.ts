@@ -2,6 +2,7 @@ import type { ExchangeValues } from "@/components/ExchangeForm/ExchangeForm";
 import type {
   CreateExchangeRequest,
   Exchange,
+  ExchangeInvite,
   ListExchangeInvitesResponse,
   ListExchangesResponse,
 } from "@giftexchanger/types";
@@ -24,9 +25,7 @@ function toExchangeRequest(values: ExchangeValues): CreateExchangeRequest {
     name: values.name,
     description: values.description ?? "",
     exchangeDate: format(values.exchangeDate, "yyyy-MM-dd"),
-    budgetCents:
-      values.budget == null ? null : Math.round(values.budget * 100),
-    inviteEmails: values.inviteEmails,
+    budgetCents: values.budget == null ? null : Math.round(values.budget * 100),
   };
 }
 
@@ -99,6 +98,38 @@ export async function createExchange(values: ExchangeValues) {
   }
 
   return await response.json();
+}
+
+export async function addExchangeInvite(exchangeId: string, email: string) {
+  const response = await fetch(`/api/exchanges/${exchangeId}/invites`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await apiErrorMessage(response, "We could not send that invite."),
+    );
+  }
+
+  return (await response.json()) as ExchangeInvite;
+}
+
+export async function revokeExchangeInvite(exchangeId: string, email: string) {
+  const response = await fetch(`/api/exchanges/${exchangeId}/invites`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await apiErrorMessage(response, "We could not revoke that invite."),
+    );
+  }
+
+  return (await response.json()) as ExchangeInvite;
 }
 
 export async function deleteExchange(exchangeId: string) {

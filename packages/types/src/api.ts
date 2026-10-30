@@ -55,12 +55,25 @@ export interface Exchange {
   state: ExchangeState;
   members: ExchangeMember[];
 }
+export type ExchangeInviteStatus = string;
+export const ExchangeInviteStatusPending: ExchangeInviteStatus = "pending";
+export const ExchangeInviteStatusAccepted: ExchangeInviteStatus = "accepted";
+export const ExchangeInviteStatusDeclined: ExchangeInviteStatus = "declined";
+export const ExchangeInviteStatusRevoked: ExchangeInviteStatus = "revoked";
 /**
- * ListExchangeInvitesResponse holds the invites that have been neither accepted
- * nor declined. Only the organizer of an exchange may read them.
+ * ExchangeInvite is one invite on an exchange. Accepted and declined are the
+ * invitee's response. Revoked is the organizer withdrawing a pending invite.
+ */
+export interface ExchangeInvite {
+  email: string;
+  status: ExchangeInviteStatus;
+}
+/**
+ * ListExchangeInvitesResponse holds every invite for an exchange. Only the
+ * organizer may read them.
  */
 export interface ListExchangeInvitesResponse {
-  inviteEmails: string[];
+  invites: ExchangeInvite[];
 }
 export interface CreateExchangeRequest {
   name: string;
@@ -70,9 +83,14 @@ export interface CreateExchangeRequest {
    */
   exchangeDate: string;
   budgetCents?: number | null;
-  inviteEmails: string[];
 }
 export type UpdateExchangeRequest = CreateExchangeRequest;
+/**
+ * ExchangeInviteRequest adds or revokes one invite. Only the organizer may do this.
+ */
+export interface ExchangeInviteRequest {
+  email: string;
+}
 export interface ListExchangesResponse {
   exchanges: Exchange[];
 }

@@ -4,13 +4,15 @@ import { useCurrentUser } from "@/components/CurrentUser/CurrentUserProvider"
 import { DashboardPageContent } from "@/components/DashboardPageLayout/DashboardPageContent"
 import { DashboardPageHeader } from "@/components/DashboardPageLayout/DashboardPageHeader"
 import { DeleteExchangeButton } from "@/components/DeleteExchangeButton/DeleteExchangeButton"
+import { ExchangeInvitesTable } from "@/components/ExchangeInvites/ExchangeInvitesTable"
+import { TabView, TabContent, Tabs } from "@/components/TabView/TabView"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { getExchangeById, getExchangeInvites } from "@/lib/exchanges"
+import { getExchangeById } from "@/lib/exchanges"
 import { useQuery } from "@tanstack/react-query"
 import { parseISO } from "date-fns"
-import { ArrowLeft, Calendar, Edit, Mail, User2, Wallet } from "lucide-react"
+import { ArrowLeft, Calendar, Edit, User2, Wallet } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { use, type ReactNode } from "react"
@@ -31,13 +33,6 @@ export default function ExchangeDetailsPage({
 
     const isOrganizer = data?.organizerId === user?.id
 
-    // Only the organizer is allowed to read invites, so don't ask otherwise.
-    const { data: invites } = useQuery({
-        queryKey: ["exchange", exchangeId, "invites"],
-        queryFn: () => getExchangeInvites(exchangeId),
-        enabled: isOrganizer
-    })
-
     if (error) {
         return <p className="text-sm text-destructive">{error.message}</p>
     }
@@ -45,6 +40,15 @@ export default function ExchangeDetailsPage({
     if (!data) {
         return <Spinner className="self-center" />
     }
+
+    const tabs = isOrganizer ? [{
+        id: 'details',
+        title: "Details"
+    },
+    {
+        id: 'invites',
+        title: 'Invites'
+    }] : []
 
     return <>
         <DashboardPageHeader title={data.name} description={data.description}>
@@ -67,31 +71,33 @@ export default function ExchangeDetailsPage({
             </div>
         </DashboardPageHeader>
         <DashboardPageContent>
-            <dl className="flex flex-col gap-4">
-                <DetailRow icon={<Calendar size={15} />} label="Exchange day">
-                    {parseISO(data.exchangeDate).toDateString()}
-                </DetailRow>
-                <DetailRow icon={<Wallet size={15} />} label="Budget">
-                    {data.budgetCents == null ? "No budget set" : `$${data.budgetCents / 100}`}
-                </DetailRow>
-                <DetailRow icon={<User2 size={15} />} label="Members">
-                    <ul className="flex flex-col gap-2">
-                        {data.members.map(member => <li key={member.userId} className="flex items-center justify-between gap-2">
-                            <span className="truncate">
-                                {member.displayName || member.email}
-                            </span>
-                            {member.isOrganizer && <Badge variant="secondary">Organizer</Badge>}
-                        </li>)}
-                    </ul>
-                </DetailRow>
-                {isOrganizer && invites && <DetailRow icon={<Mail size={15} />} label="Pending invites">
-                    {invites.inviteEmails.length > 0
-                        ? <ul className="flex flex-col">
-                            {invites.inviteEmails.map(email => <li key={email}>{email}</li>)}
-                        </ul>
-                        : "Nobody invited yet"}
-                </DetailRow>}
-            </dl>
+            <TabView initialTab="details">
+                <Tabs tabs={tabs} />
+                <TabContent id="details">
+                    <dl className="flex flex-col gap-4">
+                        <DetailRow icon={<Calendar size={15} />} label="Exchange day">
+                            {parseISO(data.exchangeDate).toDateString()}
+                        </DetailRow>
+                        <DetailRow icon={<Wallet size={15} />} label="Budget">
+                            {data.budgetCents == null ? "No budget set" : `$${data.budgetCents / 100}`}
+                        </DetailRow>
+                        <DetailRow icon={<User2 size={15} />} label="Members">
+                            <ul className="flex flex-col gap-2">
+                                {data.members.map(member => <li key={member.userId} className="flex items-center justify-between gap-2">
+                                    <span className="truncate">
+                                        {member.displayName || member.email}
+                                    </span>
+                                    {member.isOrganizer && <Badge variant="secondary">Organizer</Badge>}
+                                </li>)}
+                            </ul>
+                        </DetailRow>
+
+                    </dl>
+                </TabContent>
+                {isOrganizer && <TabContent id="invites">
+                    <ExchangeInvitesTable exchangeId={exchangeId} />
+                </TabContent>}
+            </TabView>
         </DashboardPageContent>
     </>
 }

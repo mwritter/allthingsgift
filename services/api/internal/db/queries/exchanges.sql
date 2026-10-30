@@ -32,14 +32,6 @@ WHERE e.id::text = sqlc.arg(exchange_id)::text;
 -- name: GetExchangeOrganizerID :one
 SELECT organizer_id FROM exchanges WHERE id::text = sqlc.arg(exchange_id)::text;
 
--- name: ListOpenInviteEmails :many
-SELECT email
-FROM exchange_invites
-WHERE exchange_id::text = sqlc.arg(exchange_id)::text
-    AND accepted_at IS NULL
-    AND declined_at IS NULL
-ORDER BY lower(email);
-
 -- name: ListMembersForExchanges :many
 SELECT m.exchange_id, u.id AS user_id, u.email, u.display_name
 FROM exchange_members m
@@ -84,21 +76,50 @@ WHERE id::text = sqlc.arg(id)::text AND organizer_id = sqlc.arg(organizer_id);
 SELECT
     lower(email)::text AS email,
     (accepted_at IS NOT NULL)::bool AS accepted,
-    (declined_at IS NOT NULL)::bool AS declined
+    (declined_at IS NOT NULL)::bool AS declined,
+    (revoked_at IS NOT NULL)::bool AS revoked
 FROM exchange_invites
 WHERE exchange_id::text = sqlc.arg(exchange_id)::text;
 
--- name: ReopenDeclinedInvite :exec
-UPDATE exchange_invites
-SET declined_at = NULL
-WHERE exchange_id::text = sqlc.arg(exchange_id)::text AND lower(email) = sqlc.arg(email);
+-- name: GetInviteState :one
+SELECT
+    lower(email)::text AS email,
+    (accepted_at IS NOT NULL)::bool AS accepted,
+    (declined_at IS NOT NULL)::bool AS declined,
+    (revoked_at IS NOT NULL)::bool AS revoked
+FROM exchange_invites
+WHERE exchange_id::text = sqlc.arg(exchange_id)::text
+    AND lower(email) = sqlc.arg(email);
 
--- name: DeleteOpenInvite :exec
-DELETE FROM exchange_invites
+-- name: ReopenInvite :exec
+UPDATE exchange_invites
+SET declined_at = NULL,
+    revoked_at = NULL
 WHERE exchange_id::text = sqlc.arg(exchange_id)::text
     AND lower(email) = sqlc.arg(email)
-    AND accepted_at IS NULL
-    AND declined_at IS NULL;
+    AND accepted_at IS NULL;
+
+-- name: RevokeInvite :execrows
+UPDATE exchange_invites
+SET accepted_at = NULL,
+    revoked_at = now()
+WHERE exchange_id::text = sqlc.arg(exchange_id)::text
+    AND lower(email) = sqlc.arg(email)
+    AND declined_at IS NULL
+    AND revoked_at IS NULL;
+
+-- name: GetUserIDByEmail :one
+SELECT id FROM users WHERE lower(email) = sqlc.arg(email);
+
+-- name: DeleteMemberAssignments :exec
+DELETE FROM assignments
+WHERE exchange_id::text = sqlc.arg(exchange_id)::text
+    AND (giver_id = sqlc.arg(user_id) OR recipient_id = sqlc.arg(user_id));
+
+-- name: DeleteExchangeMember :exec
+DELETE FROM exchange_members
+WHERE exchange_id::text = sqlc.arg(exchange_id)::text
+    AND user_id = sqlc.arg(user_id);
 
 -- name: DeleteExchange :execrows
 DELETE FROM exchanges

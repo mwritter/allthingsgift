@@ -7,6 +7,7 @@ import { ExchangeForm, ExchangeValues } from "@/components/ExchangeForm/Exchange
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { fromApiDate, getExchangeById, getExchangeInvites, updateExchange } from "@/lib/exchanges"
+import { ExchangeInviteStatusPending } from "@giftexchanger/types"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { use, useEffect } from "react"
@@ -81,7 +82,6 @@ export default function EditExchange({
                 description={data.description}
                 exchangeDate={fromApiDate(data.exchangeDate)}
                 budget={data.budgetCents == null ? null : data.budgetCents / 100}
-                inviteEmails={invites.inviteEmails}
                 isLoading={submit.isPending}
             />
         </DashboardPageContent>

@@ -37,6 +37,7 @@ type ExchangeInvite struct {
 	AcceptedAt pgtype.Timestamptz
 	DeclinedAt pgtype.Timestamptz
 	CreatedAt  time.Time
+	RevokedAt  pgtype.Timestamptz
 }
 
 type ExchangeMember struct {

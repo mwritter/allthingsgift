@@ -9,7 +9,6 @@ import { Input } from '../ui/input'
 import { Button } from '../ui/button'
 import { DatePicker } from '../DatePicker/DatePicker'
 import { Textarea } from '../ui/textarea'
-import { ExchangeInviteForm } from '../ExchangeInviteInput/ExchangeInviteForm'
 
 const formSchema = z.object({
     name: z.string().min(2),
@@ -21,7 +20,6 @@ const formSchema = z.object({
     description: z.string().optional(),
     // In dollars; converted to cents when sent to the API.
     budget: z.number().min(0).nullable(),
-    inviteEmails: z.email().array()
 })
 
 export type ExchangeValues = z.input<typeof formSchema>
@@ -37,7 +35,6 @@ export function ExchangeForm(props: Props) {
         exchangeDate: props.exchangeDate ?? null,
         description: props.description ?? "",
         budget: props.budget ?? null,
-        inviteEmails: props.inviteEmails ?? []
     }
 
     const { handleSubmit, Field: FromField } = useForm({
@@ -133,17 +130,6 @@ export function ExchangeForm(props: Props) {
                             </div>
                         </Field>
                     }}
-                </FromField>
-                <FromField name='inviteEmails'>
-                    {(field) => (
-                        <Field>
-                            <Label>Invite Emails</Label>
-                            <ExchangeInviteForm
-                                emails={field.state.value}
-                                onChange={field.handleChange}
-                            />
-                        </Field>
-                    )}
                 </FromField>
             </div>
             <Field>
