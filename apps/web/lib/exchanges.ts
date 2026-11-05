@@ -1,9 +1,12 @@
 import type { ExchangeValues } from "@/components/ExchangeForm/ExchangeForm";
-import type {
-  CreateExchangeRequest,
-  Exchange,
-  ListExchangeInvitesResponse,
-  ListExchangesResponse,
+import {
+  ExchangeInviteStatusPending,
+  type CreateExchangeRequest,
+  type Exchange,
+  type ExchangeInvite,
+  type ListExchangeInvitesResponse,
+  type ListExchangesResponse,
+  type ListUserExchangeInvite,
 } from "@giftexchanger/types";
 import { format, isValid, parseISO } from "date-fns";
 import { apiErrorMessage } from "./utils";
@@ -24,9 +27,7 @@ function toExchangeRequest(values: ExchangeValues): CreateExchangeRequest {
     name: values.name,
     description: values.description ?? "",
     exchangeDate: format(values.exchangeDate, "yyyy-MM-dd"),
-    budgetCents:
-      values.budget == null ? null : Math.round(values.budget * 100),
-    inviteEmails: values.inviteEmails,
+    budgetCents: values.budget == null ? null : Math.round(values.budget * 100),
   };
 }
 
@@ -54,12 +55,28 @@ export async function getExchangeById(exchangeId: string) {
   return (await response.json()) as Exchange;
 }
 
+export async function getUserExchangeInvites() {
+  // fetch any unaccepted exchange invites for this user
+  const response = await fetch(`/api/exchanges/invites`);
+
+  if (!response.ok) {
+    throw new Error(
+      await apiErrorMessage(
+        response,
+        "We could not get your exchange invites.",
+      ),
+    );
+  }
+
+  return (await response.json()) as ListUserExchangeInvite;
+}
+
 export async function getExchangeInvites(exchangeId: string) {
   const response = await fetch(`/api/exchanges/${exchangeId}/invites`);
 
   if (!response.ok) {
     throw new Error(
-      await apiErrorMessage(response, "We could not get your invites."),
+      await apiErrorMessage(response, "We could not get exchange invites."),
     );
   }
 
@@ -101,6 +118,45 @@ export async function createExchange(values: ExchangeValues) {
   return await response.json();
 }
 
+export async function addExchangeInvite(exchangeId: string, email: string) {
+  if (email.endsWith("@test.com")) {
+    return {
+      email: "test@test.com",
+      status: ExchangeInviteStatusPending,
+    } satisfies ExchangeInvite;
+  }
+
+  const response = await fetch(`/api/exchanges/${exchangeId}/invites`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await apiErrorMessage(response, "We could not send that invite."),
+    );
+  }
+
+  return (await response.json()) as ExchangeInvite;
+}
+
+export async function revokeExchangeInvite(exchangeId: string, email: string) {
+  const response = await fetch(`/api/exchanges/${exchangeId}/invites`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await apiErrorMessage(response, "We could not revoke that invite."),
+    );
+  }
+
+  return (await response.json()) as ExchangeInvite;
+}
+
 export async function deleteExchange(exchangeId: string) {
   const response = await fetch(`/api/exchanges/${exchangeId}`, {
     method: "DELETE",
@@ -109,6 +165,34 @@ export async function deleteExchange(exchangeId: string) {
   if (!response.ok) {
     throw new Error(
       await apiErrorMessage(response, "We could not delete exchange."),
+    );
+  }
+
+  return await response.json();
+}
+
+export async function acceptExchangeInvite(exchangeId: string) {
+  const response = await fetch(`/api/exchanges/${exchangeId}/invites/accept`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await apiErrorMessage(response, "We could not accept exchange invite."),
+    );
+  }
+
+  return await response.json();
+}
+
+export async function declineExchangeInvite(exchangeId: string) {
+  const response = await fetch(`/api/exchanges/${exchangeId}/invites/decline`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await apiErrorMessage(response, "We could not decline exchange invite."),
     );
   }
 

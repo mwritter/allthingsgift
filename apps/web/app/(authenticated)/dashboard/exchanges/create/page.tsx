@@ -3,10 +3,8 @@
 import { DashboardPageContent } from "@/components/DashboardPageLayout/DashboardPageContent";
 import { DashboardPageHeader } from "@/components/DashboardPageLayout/DashboardPageHeader";
 import { ExchangeForm } from "@/components/ExchangeForm/ExchangeForm";
-import { Button } from "@/components/ui/button";
 import { createExchange } from "@/lib/exchanges";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function CreateExchangePage() {
@@ -23,11 +21,7 @@ export default function CreateExchangePage() {
     })
 
     return <>
-        <DashboardPageHeader title="Create Exchange" description="Set up a new exchange and invite the people you want in it.">
-            <Button variant="outline" render={<Link href="/dashboard/exchanges" />} nativeButton={false}>
-                Cancel
-            </Button>
-        </DashboardPageHeader>
+        <DashboardPageHeader title="Create Exchange" description="Set up a new exchange and invite the people you want in it." />
         <DashboardPageContent>
             <ExchangeForm onSubmit={create.mutate} isLoading={create.isPending} />
         </DashboardPageContent>

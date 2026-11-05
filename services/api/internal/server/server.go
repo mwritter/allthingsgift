@@ -34,7 +34,10 @@ func New(pool *pgxpool.Pool, authService *auth.Service, exchangesService *exchan
 
 			r.Get("/exchanges", s.getExchanges)
 			r.Get("/exchanges/{exchangeID}", s.getExchange)
+			r.Get("/exchanges/invites", s.getUserExchangeInvites)
 			r.Get("/exchanges/{exchangeID}/invites", s.getExchangeInvites)
+			r.Post("/exchanges/{exchangeID}/invites", s.addExchangeInvite)
+			r.Delete("/exchanges/{exchangeID}/invites", s.revokeExchangeInvite)
 			r.Post("/exchanges/{exchangeID}/invites/accept", s.acceptExchangeInvite)
 			r.Post("/exchanges/{exchangeID}/invites/decline", s.declineExchangeInvite)
 			r.Post("/exchanges", s.createExchange)

@@ -11,7 +11,7 @@ export async function DashboardSidebar() {
         <SidebarHeader>
             <div className="flex gap-2 justify-center items-center py-5">
                 <Gift size={40} className="text-primary" />
-                <p className="font-bold text-xl">GiftExchanger</p>
+                <p className="font-bold text-xl">AllThingsGift</p>
             </div>
         </SidebarHeader>
         <SidebarContent>

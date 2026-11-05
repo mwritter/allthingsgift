@@ -9,7 +9,7 @@ import { Input } from '../ui/input'
 import { Button } from '../ui/button'
 import { DatePicker } from '../DatePicker/DatePicker'
 import { Textarea } from '../ui/textarea'
-import { ExchangeInviteForm } from '../ExchangeInviteInput/ExchangeInviteForm'
+import { useRouter } from 'next/navigation'
 
 const formSchema = z.object({
     name: z.string().min(2),
@@ -21,7 +21,6 @@ const formSchema = z.object({
     description: z.string().optional(),
     // In dollars; converted to cents when sent to the API.
     budget: z.number().min(0).nullable(),
-    inviteEmails: z.email().array()
 })
 
 export type ExchangeValues = z.input<typeof formSchema>
@@ -32,12 +31,12 @@ type Props = Partial<ExchangeValues> & {
 }
 
 export function ExchangeForm(props: Props) {
+    const router = useRouter()
     const defaultValues: ExchangeValues = {
         name: props.name ?? "",
         exchangeDate: props.exchangeDate ?? null,
         description: props.description ?? "",
         budget: props.budget ?? null,
-        inviteEmails: props.inviteEmails ?? []
     }
 
     const { handleSubmit, Field: FromField } = useForm({
@@ -134,23 +133,15 @@ export function ExchangeForm(props: Props) {
                         </Field>
                     }}
                 </FromField>
-                <FromField name='inviteEmails'>
-                    {(field) => (
-                        <Field>
-                            <Label>Invite Emails</Label>
-                            <ExchangeInviteForm
-                                emails={field.state.value}
-                                onChange={field.handleChange}
-                            />
-                        </Field>
-                    )}
-                </FromField>
             </div>
-            <Field>
+            <div className='flex flex-col gap-2 md:flex-row'>
                 <Button type="submit" disabled={props.isLoading}>
                     {props.isLoading ? 'Submitting' : 'Submit'}
                 </Button>
-            </Field>
+                <Button type="button" variant="outline" onClick={() => router.back()}>
+                    Cancel
+                </Button>
+            </div>
         </form>
     </div>
 }

@@ -4,9 +4,9 @@ import { DashboardPageHeader } from "@/components/DashboardPageLayout/DashboardP
 export default function WishlistsPage() {
     return (
         <>
-            <DashboardPageHeader title="Wishlist" description="A wishlist of items you'd like to get! Add items to exchanges and your wish might get picked!" />
+            <DashboardPageHeader title="My Wishlist" description="A wishlist of items you'd like to get! Add items to exchanges and your wish might get picked!" />
             <DashboardPageContent>
-                Wishlist Page
+                My Wishlist Page
             </DashboardPageContent>
         </>
     )

@@ -56,22 +56,61 @@ type Exchange struct {
 	Members      []ExchangeMember `json:"members"`
 }
 
-// ListExchangeInvitesResponse holds the invites that have been neither accepted
-// nor declined. Only the organizer of an exchange may read them.
+type ExchangeInviteStatus string
+
+const (
+	ExchangeInviteStatusPending  ExchangeInviteStatus = "pending"
+	ExchangeInviteStatusAccepted ExchangeInviteStatus = "accepted"
+	ExchangeInviteStatusDeclined ExchangeInviteStatus = "declined"
+	ExchangeInviteStatusRevoked  ExchangeInviteStatus = "revoked"
+)
+
+type UserExchangeInvites struct {
+	ID          string `json:"id"`
+	OrganizerID string `json:"organizerId"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	// Calendar date, YYYY-MM-DD.
+	ExchangeDate         string           `json:"exchangeDate"`
+	BudgetCents          *int             `json:"budgetCents" tstype:"number | null"`
+	State                ExchangeState    `json:"state"`
+	Members              []ExchangeMember `json:"members"`
+	InviteID             string           `json:"inviteId"`
+	OrganizerEmail       string           `json:"organizerEmail"`
+	OrganizerDisplayName string           `json:"organizerDisplayName"`
+}
+
+type ListUserExchangeInvite struct {
+	Invites []UserExchangeInvites `json:"invites"`
+}
+
+// ExchangeInvite is one invite on an exchange. Accepted and declined are the
+// invitee's response. Revoked is the organizer withdrawing a pending invite.
+type ExchangeInvite struct {
+	Email  string               `json:"email"`
+	Status ExchangeInviteStatus `json:"status"`
+}
+
+// ListExchangeInvitesResponse holds every invite for an exchange. Only the
+// organizer may read them.
 type ListExchangeInvitesResponse struct {
-	InviteEmails []string `json:"inviteEmails"`
+	Invites []ExchangeInvite `json:"invites"`
 }
 
 type CreateExchangeRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	// Calendar date, YYYY-MM-DD.
-	ExchangeDate string   `json:"exchangeDate"`
-	BudgetCents  *int     `json:"budgetCents" tstype:"number | null"`
-	InviteEmails []string `json:"inviteEmails"`
+	ExchangeDate string `json:"exchangeDate"`
+	BudgetCents  *int   `json:"budgetCents" tstype:"number | null"`
 }
 
 type UpdateExchangeRequest = CreateExchangeRequest
+
+// ExchangeInviteRequest adds or revokes one invite. Only the organizer may do this.
+type ExchangeInviteRequest struct {
+	Email string `json:"email"`
+}
 
 type ListExchangesResponse struct {
 	Exchanges []Exchange `json:"exchanges"`

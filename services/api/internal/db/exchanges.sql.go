@@ -9,6 +9,52 @@ import (
 	"context"
 )
 
+const acceptInvite = `-- name: AcceptInvite :execrows
+UPDATE exchange_invites
+SET accepted_at = now()
+WHERE exchange_id::text = $1::text
+    AND lower(email) = $2
+    AND accepted_at IS NULL
+    AND declined_at IS NULL
+    AND revoked_at IS NULL
+`
+
+type AcceptInviteParams struct {
+	ExchangeID string
+	Email      string
+}
+
+func (q *Queries) AcceptInvite(ctx context.Context, arg AcceptInviteParams) (int64, error) {
+	result, err := q.db.Exec(ctx, acceptInvite, arg.ExchangeID, arg.Email)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const declineInvite = `-- name: DeclineInvite :execrows
+UPDATE exchange_invites
+SET declined_at = now()
+WHERE exchange_id::text = $1::text
+    AND lower(email) = $2
+    AND accepted_at IS NULL
+    AND declined_at IS NULL
+    AND revoked_at IS NULL
+`
+
+type DeclineInviteParams struct {
+	ExchangeID string
+	Email      string
+}
+
+func (q *Queries) DeclineInvite(ctx context.Context, arg DeclineInviteParams) (int64, error) {
+	result, err := q.db.Exec(ctx, declineInvite, arg.ExchangeID, arg.Email)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteExchange = `-- name: DeleteExchange :execrows
 DELETE FROM exchanges
 WHERE id::text = $1::text AND organizer_id = $2
@@ -27,21 +73,35 @@ func (q *Queries) DeleteExchange(ctx context.Context, arg DeleteExchangeParams) 
 	return result.RowsAffected(), nil
 }
 
-const deleteOpenInvite = `-- name: DeleteOpenInvite :exec
-DELETE FROM exchange_invites
+const deleteExchangeMember = `-- name: DeleteExchangeMember :exec
+DELETE FROM exchange_members
 WHERE exchange_id::text = $1::text
-    AND lower(email) = $2
-    AND accepted_at IS NULL
-    AND declined_at IS NULL
+    AND user_id = $2
 `
 
-type DeleteOpenInviteParams struct {
+type DeleteExchangeMemberParams struct {
 	ExchangeID string
-	Email      string
+	UserID     string
 }
 
-func (q *Queries) DeleteOpenInvite(ctx context.Context, arg DeleteOpenInviteParams) error {
-	_, err := q.db.Exec(ctx, deleteOpenInvite, arg.ExchangeID, arg.Email)
+func (q *Queries) DeleteExchangeMember(ctx context.Context, arg DeleteExchangeMemberParams) error {
+	_, err := q.db.Exec(ctx, deleteExchangeMember, arg.ExchangeID, arg.UserID)
+	return err
+}
+
+const deleteMemberAssignments = `-- name: DeleteMemberAssignments :exec
+DELETE FROM assignments
+WHERE exchange_id::text = $1::text
+    AND (giver_id = $2 OR recipient_id = $2)
+`
+
+type DeleteMemberAssignmentsParams struct {
+	ExchangeID string
+	UserID     string
+}
+
+func (q *Queries) DeleteMemberAssignments(ctx context.Context, arg DeleteMemberAssignmentsParams) error {
+	_, err := q.db.Exec(ctx, deleteMemberAssignments, arg.ExchangeID, arg.UserID)
 	return err
 }
 
@@ -99,6 +159,120 @@ func (q *Queries) GetExchangeOrganizerID(ctx context.Context, exchangeID string)
 	var organizer_id string
 	err := row.Scan(&organizer_id)
 	return organizer_id, err
+}
+
+const getInviteState = `-- name: GetInviteState :one
+SELECT
+    lower(email)::text AS email,
+    (accepted_at IS NOT NULL)::bool AS accepted,
+    (declined_at IS NOT NULL)::bool AS declined,
+    (revoked_at IS NOT NULL)::bool AS revoked
+FROM exchange_invites
+WHERE exchange_id::text = $1::text
+    AND lower(email) = $2
+`
+
+type GetInviteStateParams struct {
+	ExchangeID string
+	Email      string
+}
+
+type GetInviteStateRow struct {
+	Email    string
+	Accepted bool
+	Declined bool
+	Revoked  bool
+}
+
+func (q *Queries) GetInviteState(ctx context.Context, arg GetInviteStateParams) (GetInviteStateRow, error) {
+	row := q.db.QueryRow(ctx, getInviteState, arg.ExchangeID, arg.Email)
+	var i GetInviteStateRow
+	err := row.Scan(
+		&i.Email,
+		&i.Accepted,
+		&i.Declined,
+		&i.Revoked,
+	)
+	return i, err
+}
+
+const getUserExchangeInvites = `-- name: GetUserExchangeInvites :many
+SELECT
+    e.id,
+    e.organizer_id,
+    e.name,
+    e.exchange_description,
+    COALESCE(to_char(e.exchange_date, 'YYYY-MM-DD'), '')::text AS exchange_date,
+    e.exchange_budget_cents,
+    e.state,
+    u.display_name AS organizer_name,
+    u.email AS organizer_email
+FROM exchanges e
+JOIN exchange_invites invite
+    ON invite.exchange_id = e.id
+JOIN users invitee
+    ON lower(invitee.email) = lower(invite.email)
+JOIN users u
+    ON u.id = e.organizer_id
+WHERE invitee.id = $1
+    AND invite.accepted_at IS NULL
+    AND invite.declined_at IS NULL
+    AND invite.revoked_at IS NULL
+ORDER BY invite.created_at
+`
+
+type GetUserExchangeInvitesRow struct {
+	ID                  string
+	OrganizerID         string
+	Name                string
+	ExchangeDescription string
+	ExchangeDate        string
+	ExchangeBudgetCents *int32
+	State               string
+	OrganizerName       string
+	OrganizerEmail      string
+}
+
+// Pending invites only: accepted, declined, and revoked are all unset.
+func (q *Queries) GetUserExchangeInvites(ctx context.Context, userID string) ([]GetUserExchangeInvitesRow, error) {
+	rows, err := q.db.Query(ctx, getUserExchangeInvites, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetUserExchangeInvitesRow{}
+	for rows.Next() {
+		var i GetUserExchangeInvitesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizerID,
+			&i.Name,
+			&i.ExchangeDescription,
+			&i.ExchangeDate,
+			&i.ExchangeBudgetCents,
+			&i.State,
+			&i.OrganizerName,
+			&i.OrganizerEmail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserIDByEmail = `-- name: GetUserIDByEmail :one
+SELECT id FROM users WHERE lower(email) = $1
+`
+
+func (q *Queries) GetUserIDByEmail(ctx context.Context, email string) (string, error) {
+	row := q.db.QueryRow(ctx, getUserIDByEmail, email)
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }
 
 const insertExchange = `-- name: InsertExchange :one
@@ -233,7 +407,8 @@ const listInviteStates = `-- name: ListInviteStates :many
 SELECT
     lower(email)::text AS email,
     (accepted_at IS NOT NULL)::bool AS accepted,
-    (declined_at IS NOT NULL)::bool AS declined
+    (declined_at IS NOT NULL)::bool AS declined,
+    (revoked_at IS NOT NULL)::bool AS revoked
 FROM exchange_invites
 WHERE exchange_id::text = $1::text
 `
@@ -242,6 +417,7 @@ type ListInviteStatesRow struct {
 	Email    string
 	Accepted bool
 	Declined bool
+	Revoked  bool
 }
 
 func (q *Queries) ListInviteStates(ctx context.Context, exchangeID string) ([]ListInviteStatesRow, error) {
@@ -253,7 +429,12 @@ func (q *Queries) ListInviteStates(ctx context.Context, exchangeID string) ([]Li
 	items := []ListInviteStatesRow{}
 	for rows.Next() {
 		var i ListInviteStatesRow
-		if err := rows.Scan(&i.Email, &i.Accepted, &i.Declined); err != nil {
+		if err := rows.Scan(
+			&i.Email,
+			&i.Accepted,
+			&i.Declined,
+			&i.Revoked,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -304,49 +485,46 @@ func (q *Queries) ListMembersForExchanges(ctx context.Context, exchangeIds []str
 	return items, nil
 }
 
-const listOpenInviteEmails = `-- name: ListOpenInviteEmails :many
-SELECT email
-FROM exchange_invites
-WHERE exchange_id::text = $1::text
-    AND accepted_at IS NULL
-    AND declined_at IS NULL
-ORDER BY lower(email)
-`
-
-func (q *Queries) ListOpenInviteEmails(ctx context.Context, exchangeID string) ([]string, error) {
-	rows, err := q.db.Query(ctx, listOpenInviteEmails, exchangeID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []string{}
-	for rows.Next() {
-		var email string
-		if err := rows.Scan(&email); err != nil {
-			return nil, err
-		}
-		items = append(items, email)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const reopenDeclinedInvite = `-- name: ReopenDeclinedInvite :exec
+const reopenInvite = `-- name: ReopenInvite :exec
 UPDATE exchange_invites
-SET declined_at = NULL
-WHERE exchange_id::text = $1::text AND lower(email) = $2
+SET declined_at = NULL,
+    revoked_at = NULL
+WHERE exchange_id::text = $1::text
+    AND lower(email) = $2
+    AND accepted_at IS NULL
 `
 
-type ReopenDeclinedInviteParams struct {
+type ReopenInviteParams struct {
 	ExchangeID string
 	Email      string
 }
 
-func (q *Queries) ReopenDeclinedInvite(ctx context.Context, arg ReopenDeclinedInviteParams) error {
-	_, err := q.db.Exec(ctx, reopenDeclinedInvite, arg.ExchangeID, arg.Email)
+func (q *Queries) ReopenInvite(ctx context.Context, arg ReopenInviteParams) error {
+	_, err := q.db.Exec(ctx, reopenInvite, arg.ExchangeID, arg.Email)
 	return err
+}
+
+const revokeInvite = `-- name: RevokeInvite :execrows
+UPDATE exchange_invites
+SET accepted_at = NULL,
+    revoked_at = now()
+WHERE exchange_id::text = $1::text
+    AND lower(email) = $2
+    AND declined_at IS NULL
+    AND revoked_at IS NULL
+`
+
+type RevokeInviteParams struct {
+	ExchangeID string
+	Email      string
+}
+
+func (q *Queries) RevokeInvite(ctx context.Context, arg RevokeInviteParams) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeInvite, arg.ExchangeID, arg.Email)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateExchange = `-- name: UpdateExchange :execrows

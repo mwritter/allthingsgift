@@ -2,15 +2,21 @@
 
 import { DashboardPageContent } from "@/components/DashboardPageLayout/DashboardPageContent";
 import { DashboardPageHeader } from "@/components/DashboardPageLayout/DashboardPageHeader";
+import { ExchangeInvite } from "@/components/ExchangeInvites/ExchangeInvite";
 import { ExchangeList } from "@/components/ExchangeList/ExchangeList";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { getExchanges } from "@/lib/exchanges";
+import { getExchanges, getUserExchangeInvites } from "@/lib/exchanges";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
 export default function ExchangesPage() {
+
+    const { data: invitesData } = useQuery({
+        queryKey: ['exchanges', 'invites'],
+        queryFn: getUserExchangeInvites
+    })
 
     const { data, error } = useQuery({
         queryKey: ['exchanges'],
@@ -24,14 +30,19 @@ export default function ExchangesPage() {
                 Create
             </Button>
         </DashboardPageHeader>
-        <DashboardPageContent>
+        <DashboardPageContent className="gap-5">
+            {invitesData && invitesData.invites && (
+                <ul className="flex flex-col gap-5">
+                    {invitesData.invites.map(i => <ExchangeInvite key={i.id} {...i} />)}
+                </ul>)
+            }
             {error
                 ? <p className="text-sm text-destructive">{error.message}</p>
                 : !data
-                ? <Spinner className="self-center" />
-                : data.exchanges.length > 0
-                    ? <ExchangeList exchanges={data.exchanges} />
-                    : <EmptyExchangeList />}
+                    ? <Spinner className="self-center" />
+                    : data.exchanges?.length > 0
+                        ? <ExchangeList exchanges={data.exchanges} />
+                        : <EmptyExchangeList />}
         </DashboardPageContent>
     </>
 }

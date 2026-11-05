@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 	"time"
 
@@ -19,12 +20,17 @@ import (
 )
 
 var (
-	ErrInvalidName   = errors.New("invalid name")
-	ErrInvalidDate   = errors.New("invalid date")
-	ErrInvalidBudget = errors.New("invalid budget")
-	ErrInvalidEmail  = errors.New("invalid email")
-	ErrNotFound      = errors.New("exchange not found")
-	ErrForbidden     = errors.New("not the organizer")
+	ErrInvalidName    = errors.New("invalid name")
+	ErrInvalidDate    = errors.New("invalid date")
+	ErrInvalidBudget  = errors.New("invalid budget")
+	ErrInvalidEmail   = errors.New("invalid email")
+	ErrInviteSelf     = errors.New("cannot invite yourself")
+	ErrInviteRevoked  = errors.New("invite revoked")
+	ErrAlreadyJoined  = errors.New("already joined")
+	ErrInviteDeclined = errors.New("invite declined")
+	ErrInviteNotFound = errors.New("invite not found")
+	ErrNotFound       = errors.New("exchange not found")
+	ErrForbidden      = errors.New("not the organizer")
 )
 
 type Service struct {
@@ -86,25 +92,310 @@ func (s *Service) GetExchangeById(ctx context.Context, userID string, exchangeID
 	return ex, nil
 }
 
-// GetExchangeInvites returns the still-open invites for an exchange. Only the
-// organizer may read them, so members get ErrForbidden rather than an empty list.
-func (s *Service) GetExchangeInvites(ctx context.Context, userID, exchangeID string) ([]string, error) {
-	organizerID, err := s.queries.GetExchangeOrganizerID(ctx, exchangeID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	}
+// GetUserExchangeInvites returns pending invites for the logged-in user.
+func (s *Service) GetUserExchangeInvites(ctx context.Context, userID string) ([]apitypes.UserExchangeInvites, error) {
+	rows, err := s.queries.GetUserExchangeInvites(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("get exchange organizer: %w", err)
-	}
-	if organizerID != userID {
-		return nil, ErrForbidden
+		return nil, fmt.Errorf("list user invites: %w", err)
 	}
 
-	inviteEmails, err := s.queries.ListOpenInviteEmails(ctx, exchangeID)
+	invites := make([]apitypes.UserExchangeInvites, 0, len(rows))
+	for _, row := range rows {
+		invites = append(invites, apitypes.UserExchangeInvites{
+			ID:                   row.ID,
+			OrganizerID:          row.OrganizerID,
+			Name:                 row.Name,
+			Description:          row.ExchangeDescription,
+			ExchangeDate:         row.ExchangeDate,
+			BudgetCents:          intPtr(row.ExchangeBudgetCents),
+			State:                apitypes.ExchangeState(row.State),
+			OrganizerEmail:       row.OrganizerEmail,
+			OrganizerDisplayName: row.OrganizerName,
+		})
+	}
+	return invites, nil
+}
+
+// GetExchangeInvites returns every invite for an exchange, with its status.
+// Only the organizer may read them, so members get ErrForbidden rather than an
+// empty list.
+func (s *Service) GetExchangeInvites(ctx context.Context, userID, exchangeID string) ([]apitypes.ExchangeInvite, error) {
+	if err := s.requireOrganizer(ctx, userID, exchangeID); err != nil {
+		return nil, err
+	}
+
+	rows, err := s.queries.ListInviteStates(ctx, exchangeID)
 	if err != nil {
 		return nil, fmt.Errorf("list invites: %w", err)
 	}
-	return inviteEmails, nil
+
+	invites := make([]apitypes.ExchangeInvite, 0, len(rows))
+	for _, row := range rows {
+		invites = append(invites, apitypes.ExchangeInvite{
+			Email:  row.Email,
+			Status: inviteStatus(row.Accepted, row.Declined, row.Revoked),
+		})
+	}
+	slices.SortFunc(invites, func(a, b apitypes.ExchangeInvite) int {
+		return strings.Compare(a.Email, b.Email)
+	})
+	return invites, nil
+}
+
+func inviteStatus(accepted, declined, revoked bool) apitypes.ExchangeInviteStatus {
+	switch {
+	case accepted:
+		return apitypes.ExchangeInviteStatusAccepted
+	case declined:
+		return apitypes.ExchangeInviteStatusDeclined
+	case revoked:
+		return apitypes.ExchangeInviteStatusRevoked
+	default:
+		return apitypes.ExchangeInviteStatusPending
+	}
+}
+
+func (s *Service) requireOrganizer(ctx context.Context, userID, exchangeID string) error {
+	organizerID, err := s.queries.GetExchangeOrganizerID(ctx, exchangeID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("get exchange organizer: %w", err)
+	}
+	if organizerID != userID {
+		return ErrForbidden
+	}
+	return nil
+}
+
+// AddExchangeInvite creates a pending invite and emails it. Inviting someone
+// who declined or whose invite was revoked reopens that invite. The bool is
+// true when a new email was sent.
+func (s *Service) AddExchangeInvite(ctx context.Context, userID, userEmail, exchangeID, rawEmail string) (apitypes.ExchangeInvite, bool, error) {
+	if err := s.requireOrganizer(ctx, userID, exchangeID); err != nil {
+		return apitypes.ExchangeInvite{}, false, err
+	}
+
+	userEmail, _ = auth.NormalizeEmail(userEmail)
+	email, err := auth.NormalizeEmail(rawEmail)
+	if err != nil {
+		return apitypes.ExchangeInvite{}, false, ErrInvalidEmail
+	}
+	if email == userEmail {
+		return apitypes.ExchangeInvite{}, false, ErrInviteSelf
+	}
+
+	exchange, err := s.GetExchangeById(ctx, userID, exchangeID)
+	if err != nil {
+		return apitypes.ExchangeInvite{}, false, err
+	}
+
+	pending := apitypes.ExchangeInvite{
+		Email:  email,
+		Status: apitypes.ExchangeInviteStatusPending,
+	}
+	state, err := s.queries.GetInviteState(ctx, db.GetInviteStateParams{
+		ExchangeID: exchangeID,
+		Email:      email,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		if err := s.queries.InsertExchangeInvite(ctx, db.InsertExchangeInviteParams{
+			ExchangeID: exchangeID,
+			Email:      email,
+		}); err != nil {
+			return apitypes.ExchangeInvite{}, false, fmt.Errorf("insert invite: %w", err)
+		}
+		s.sendInvite(ctx, email, exchange.Name)
+		return pending, true, nil
+	}
+	if err != nil {
+		return apitypes.ExchangeInvite{}, false, fmt.Errorf("get invite: %w", err)
+	}
+	if state.Accepted {
+		return apitypes.ExchangeInvite{}, false, ErrAlreadyJoined
+	}
+	if !state.Declined && !state.Revoked {
+		return pending, false, nil
+	}
+
+	if err := s.queries.ReopenInvite(ctx, db.ReopenInviteParams{
+		ExchangeID: exchangeID,
+		Email:      email,
+	}); err != nil {
+		return apitypes.ExchangeInvite{}, false, fmt.Errorf("reopen invite: %w", err)
+	}
+	s.sendInvite(ctx, email, exchange.Name)
+	return pending, true, nil
+}
+
+// RevokeExchangeInvite marks a pending or accepted invite as revoked. The invite
+// row stays. An accepted invite also drops that person's membership. A declined
+// invite keeps the invitee's response.
+func (s *Service) RevokeExchangeInvite(ctx context.Context, userID, organizerEmail, exchangeID, rawEmail string) (apitypes.ExchangeInvite, error) {
+	if err := s.requireOrganizer(ctx, userID, exchangeID); err != nil {
+		return apitypes.ExchangeInvite{}, err
+	}
+
+	organizerEmail, _ = auth.NormalizeEmail(organizerEmail)
+	email, err := auth.NormalizeEmail(rawEmail)
+	if err != nil {
+		return apitypes.ExchangeInvite{}, ErrInvalidEmail
+	}
+	if email == organizerEmail {
+		return apitypes.ExchangeInvite{}, ErrInviteSelf
+	}
+
+	revoked := apitypes.ExchangeInvite{
+		Email:  email,
+		Status: apitypes.ExchangeInviteStatusRevoked,
+	}
+	state, err := s.queries.GetInviteState(ctx, db.GetInviteStateParams{
+		ExchangeID: exchangeID,
+		Email:      email,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return apitypes.ExchangeInvite{}, ErrInviteNotFound
+	}
+	if err != nil {
+		return apitypes.ExchangeInvite{}, fmt.Errorf("get invite: %w", err)
+	}
+	if state.Declined {
+		return apitypes.ExchangeInvite{}, ErrInviteDeclined
+	}
+	if state.Revoked {
+		return revoked, nil
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return apitypes.ExchangeInvite{}, fmt.Errorf("begin: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	q := s.queries.WithTx(tx)
+
+	updated, err := q.RevokeInvite(ctx, db.RevokeInviteParams{
+		ExchangeID: exchangeID,
+		Email:      email,
+	})
+	if err != nil {
+		return apitypes.ExchangeInvite{}, fmt.Errorf("revoke invite: %w", err)
+	}
+	if updated == 0 {
+		return apitypes.ExchangeInvite{}, ErrInviteNotFound
+	}
+	if state.Accepted {
+		if err := removeMember(ctx, q, exchangeID, email); err != nil {
+			return apitypes.ExchangeInvite{}, err
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return apitypes.ExchangeInvite{}, fmt.Errorf("commit: %w", err)
+	}
+	return revoked, nil
+}
+
+func (s *Service) UserSetExchangeInvite(ctx context.Context, exchangeID, userID, userEmail string, accepted bool) error {
+	email, err := auth.NormalizeEmail(userEmail)
+	if err != nil {
+		return ErrInvalidEmail
+	}
+
+	state, err := s.queries.GetInviteState(ctx, db.GetInviteStateParams{
+		ExchangeID: exchangeID,
+		Email:      email,
+	})
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrInviteNotFound
+	}
+
+	if err != nil {
+		return fmt.Errorf("get invite: %w", err)
+	}
+
+	if state.Accepted {
+		return ErrAlreadyJoined
+	}
+
+	if state.Declined {
+		return ErrInviteDeclined
+	}
+
+	if state.Revoked {
+		return ErrInviteRevoked
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	q := s.queries.WithTx(tx)
+
+	if accepted {
+		updated, err := q.AcceptInvite(ctx, db.AcceptInviteParams{
+			ExchangeID: exchangeID,
+			Email:      email,
+		})
+		if err != nil {
+			return fmt.Errorf("accept invite: %w", err)
+		}
+		if updated == 0 {
+			return ErrInviteNotFound
+		}
+		if err := q.InsertExchangeMember(ctx, db.InsertExchangeMemberParams{
+			ExchangeID: exchangeID,
+			UserID:     userID,
+		}); err != nil {
+			return fmt.Errorf("add member: %w", err)
+		}
+	} else {
+		updated, err := q.DeclineInvite(ctx, db.DeclineInviteParams{
+			ExchangeID: exchangeID,
+			Email:      email,
+		})
+		if err != nil {
+			return fmt.Errorf("decline invite: %w", err)
+		}
+		if updated == 0 {
+			return ErrInviteNotFound
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
+}
+
+func removeMember(ctx context.Context, q *db.Queries, exchangeID, email string) error {
+	memberID, err := q.GetUserIDByEmail(ctx, email)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("get member: %w", err)
+	}
+	if err := q.DeleteMemberAssignments(ctx, db.DeleteMemberAssignmentsParams{
+		ExchangeID: exchangeID,
+		UserID:     memberID,
+	}); err != nil {
+		return fmt.Errorf("delete assignments: %w", err)
+	}
+	if err := q.DeleteExchangeMember(ctx, db.DeleteExchangeMemberParams{
+		ExchangeID: exchangeID,
+		UserID:     memberID,
+	}); err != nil {
+		return fmt.Errorf("delete member: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) sendInvite(ctx context.Context, email, exchangeName string) {
+	inviteURL := s.baseURL + "/dashboard"
+	if err := s.mailer.SendInvite(ctx, email, exchangeName, inviteURL); err != nil {
+		log.Printf("send invite to %s: %v", email, err)
+	}
 }
 
 // membersByExchange looks up the members of several exchanges at once so that
@@ -170,7 +461,7 @@ func withOrganizer(members []apitypes.ExchangeMember, organizerID string) []apit
 	return flagged
 }
 
-func (s *Service) CreateExchange(ctx context.Context, organizerID, organizerEmail string, req apitypes.CreateExchangeRequest) (apitypes.Exchange, error) {
+func (s *Service) CreateExchange(ctx context.Context, organizerID string, req apitypes.CreateExchangeRequest) (apitypes.Exchange, error) {
 	name := strings.TrimSpace(req.Name)
 	if len([]rune(name)) < 2 {
 		return apitypes.Exchange{}, ErrInvalidName
@@ -182,12 +473,6 @@ func (s *Service) CreateExchange(ctx context.Context, organizerID, organizerEmai
 	}
 	if req.BudgetCents != nil && *req.BudgetCents < 0 {
 		return apitypes.Exchange{}, ErrInvalidBudget
-	}
-
-	organizerEmail, _ = auth.NormalizeEmail(organizerEmail)
-	inviteEmails, err := normalizeInviteEmails(req.InviteEmails, organizerEmail)
-	if err != nil {
-		return apitypes.Exchange{}, err
 	}
 
 	token, err := newInviteToken()
@@ -222,30 +507,14 @@ func (s *Service) CreateExchange(ctx context.Context, organizerID, organizerEmai
 		return apitypes.Exchange{}, fmt.Errorf("insert organizer membership: %w", err)
 	}
 
-	for _, email := range inviteEmails {
-		if err := q.InsertExchangeInvite(ctx, db.InsertExchangeInviteParams{
-			ExchangeID: id,
-			Email:      email,
-		}); err != nil {
-			return apitypes.Exchange{}, fmt.Errorf("insert invite: %w", err)
-		}
-	}
-
 	if err := tx.Commit(ctx); err != nil {
 		return apitypes.Exchange{}, fmt.Errorf("commit: %w", err)
-	}
-
-	inviteURL := s.baseURL + "/dashboard"
-	for _, email := range inviteEmails {
-		if err := s.mailer.SendInvite(ctx, email, name, inviteURL); err != nil {
-			log.Printf("send invite to %s: %v", email, err)
-		}
 	}
 
 	return s.GetExchangeById(ctx, organizerID, id)
 }
 
-func (s *Service) UpdateExchange(ctx context.Context, exchangeID, organizerID, organizerEmail string, req apitypes.CreateExchangeRequest) (apitypes.Exchange, error) {
+func (s *Service) UpdateExchange(ctx context.Context, exchangeID, organizerID string, req apitypes.UpdateExchangeRequest) (apitypes.Exchange, error) {
 	name := strings.TrimSpace(req.Name)
 	if len([]rune(name)) < 2 {
 		return apitypes.Exchange{}, ErrInvalidName
@@ -259,20 +528,7 @@ func (s *Service) UpdateExchange(ctx context.Context, exchangeID, organizerID, o
 		return apitypes.Exchange{}, ErrInvalidBudget
 	}
 
-	organizerEmail, _ = auth.NormalizeEmail(organizerEmail)
-	inviteEmails, err := normalizeInviteEmails(req.InviteEmails, organizerEmail)
-	if err != nil {
-		return apitypes.Exchange{}, err
-	}
-
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return apitypes.Exchange{}, fmt.Errorf("begin: %w", err)
-	}
-	defer tx.Rollback(ctx)
-	q := s.queries.WithTx(tx)
-
-	updated, err := q.UpdateExchange(ctx, db.UpdateExchangeParams{
+	updated, err := s.queries.UpdateExchange(ctx, db.UpdateExchangeParams{
 		ID:           exchangeID,
 		OrganizerID:  organizerID,
 		Name:         name,
@@ -285,65 +541,6 @@ func (s *Service) UpdateExchange(ctx context.Context, exchangeID, organizerID, o
 	}
 	if updated == 0 {
 		return apitypes.Exchange{}, ErrNotFound
-	}
-
-	inviteRows, err := q.ListInviteStates(ctx, exchangeID)
-	if err != nil {
-		return apitypes.Exchange{}, fmt.Errorf("list invites: %w", err)
-	}
-	existing := make(map[string]db.ListInviteStatesRow, len(inviteRows))
-	for _, row := range inviteRows {
-		existing[row.Email] = row
-	}
-
-	wanted := make(map[string]struct{}, len(inviteEmails))
-	var toSend []string
-	for _, email := range inviteEmails {
-		wanted[email] = struct{}{}
-		state, ok := existing[email]
-		if !ok {
-			if err := q.InsertExchangeInvite(ctx, db.InsertExchangeInviteParams{
-				ExchangeID: exchangeID,
-				Email:      email,
-			}); err != nil {
-				return apitypes.Exchange{}, fmt.Errorf("insert invite: %w", err)
-			}
-			toSend = append(toSend, email)
-			continue
-		}
-		if state.Accepted || !state.Declined {
-			continue
-		}
-		if err := q.ReopenDeclinedInvite(ctx, db.ReopenDeclinedInviteParams{
-			ExchangeID: exchangeID,
-			Email:      email,
-		}); err != nil {
-			return apitypes.Exchange{}, fmt.Errorf("reopen invite: %w", err)
-		}
-		toSend = append(toSend, email)
-	}
-
-	for email, state := range existing {
-		if _, ok := wanted[email]; ok || state.Accepted || state.Declined {
-			continue
-		}
-		if err := q.DeleteOpenInvite(ctx, db.DeleteOpenInviteParams{
-			ExchangeID: exchangeID,
-			Email:      email,
-		}); err != nil {
-			return apitypes.Exchange{}, fmt.Errorf("delete invite: %w", err)
-		}
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return apitypes.Exchange{}, fmt.Errorf("commit: %w", err)
-	}
-
-	inviteURL := s.baseURL + "/dashboard"
-	for _, email := range toSend {
-		if err := s.mailer.SendInvite(ctx, email, name, inviteURL); err != nil {
-			log.Printf("send invite to %s: %v", email, err)
-		}
 	}
 
 	return s.GetExchangeById(ctx, organizerID, exchangeID)
@@ -361,26 +558,6 @@ func (s *Service) DeleteExchange(ctx context.Context, exchangeID, userID string)
 		return ErrNotFound
 	}
 	return nil
-}
-
-func normalizeInviteEmails(raw []string, organizerEmail string) ([]string, error) {
-	seen := make(map[string]struct{}, len(raw))
-	emails := make([]string, 0, len(raw))
-	for _, rawEmail := range raw {
-		email, err := auth.NormalizeEmail(rawEmail)
-		if err != nil {
-			return nil, ErrInvalidEmail
-		}
-		if email == organizerEmail {
-			continue
-		}
-		if _, ok := seen[email]; ok {
-			continue
-		}
-		seen[email] = struct{}{}
-		emails = append(emails, email)
-	}
-	return emails, nil
 }
 
 func newInviteToken() (string, error) {
