@@ -34,7 +34,7 @@ export function ExchangeInviteRevokeActionButton({ email, exchangeId }: Props) {
                     <AlertDialogTitle>Revoke Invite?</AlertDialogTitle>
                     <AlertDialogDescription>
                         This will revokes the members invite.  You can resend the invite.
-                        <p>{email}</p>
+                        <span className="block pt-1">{email}</span>
                     </AlertDialogDescription>
                     {revokeInvite.isError && (
                         <p className="text-sm text-destructive">{revokeInvite.error.message}</p>
