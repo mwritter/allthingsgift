@@ -15,6 +15,31 @@ JOIN exchange_members mine
     ON mine.exchange_id = e.id AND mine.user_id = sqlc.arg(user_id)
 ORDER BY e.created_at DESC;
 
+-- name: GetUserExchangeInvites :many
+-- Pending invites only: accepted, declined, and revoked are all unset.
+SELECT
+    e.id,
+    e.organizer_id,
+    e.name,
+    e.exchange_description,
+    COALESCE(to_char(e.exchange_date, 'YYYY-MM-DD'), '')::text AS exchange_date,
+    e.exchange_budget_cents,
+    e.state,
+    u.display_name AS organizer_name,
+    u.email AS organizer_email
+FROM exchanges e
+JOIN exchange_invites invite
+    ON invite.exchange_id = e.id
+JOIN users invitee
+    ON lower(invitee.email) = lower(invite.email)
+JOIN users u
+    ON u.id = e.organizer_id
+WHERE invitee.id = sqlc.arg(user_id)
+    AND invite.accepted_at IS NULL
+    AND invite.declined_at IS NULL
+    AND invite.revoked_at IS NULL
+ORDER BY invite.created_at;
+
 -- name: GetExchangeForUser :one
 SELECT
     e.id,
@@ -105,6 +130,24 @@ SET accepted_at = NULL,
     revoked_at = now()
 WHERE exchange_id::text = sqlc.arg(exchange_id)::text
     AND lower(email) = sqlc.arg(email)
+    AND declined_at IS NULL
+    AND revoked_at IS NULL;
+
+-- name: AcceptInvite :execrows
+UPDATE exchange_invites
+SET accepted_at = now()
+WHERE exchange_id::text = sqlc.arg(exchange_id)::text
+    AND lower(email) = sqlc.arg(email)
+    AND accepted_at IS NULL
+    AND declined_at IS NULL
+    AND revoked_at IS NULL;
+
+-- name: DeclineInvite :execrows
+UPDATE exchange_invites
+SET declined_at = now()
+WHERE exchange_id::text = sqlc.arg(exchange_id)::text
+    AND lower(email) = sqlc.arg(email)
+    AND accepted_at IS NULL
     AND declined_at IS NULL
     AND revoked_at IS NULL;
 

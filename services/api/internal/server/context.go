@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/mwritter/giftexchanger/services/api/internal/auth"
 )
@@ -14,5 +15,14 @@ func WithUser(ctx context.Context, user *auth.User) context.Context {
 
 func UserFromContext(ctx context.Context) *auth.User {
 	user, _ := ctx.Value(userContextKey{}).(*auth.User)
+	return user
+}
+
+// currentUser returns the user placed on the request by requireAuth.
+func currentUser(r *http.Request) *auth.User {
+	user := UserFromContext(r.Context())
+	if user == nil {
+		panic("currentUser called without requireAuth")
+	}
 	return user
 }

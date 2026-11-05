@@ -60,6 +60,25 @@ export const ExchangeInviteStatusPending: ExchangeInviteStatus = "pending";
 export const ExchangeInviteStatusAccepted: ExchangeInviteStatus = "accepted";
 export const ExchangeInviteStatusDeclined: ExchangeInviteStatus = "declined";
 export const ExchangeInviteStatusRevoked: ExchangeInviteStatus = "revoked";
+export interface UserExchangeInvites {
+  id: string;
+  organizerId: string;
+  name: string;
+  description: string;
+  /**
+   * Calendar date, YYYY-MM-DD.
+   */
+  exchangeDate: string;
+  budgetCents?: number | null;
+  state: ExchangeState;
+  members: ExchangeMember[];
+  inviteId: string;
+  organizerEmail: string;
+  organizerDisplayName: string;
+}
+export interface ListUserExchangeInvite {
+  invites: UserExchangeInvites[];
+}
 /**
  * ExchangeInvite is one invite on an exchange. Accepted and declined are the
  * invitee's response. Revoked is the organizer withdrawing a pending invite.

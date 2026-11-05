@@ -1,6 +1,5 @@
 import { Activity, ReactNode } from "react"
 import { Tab, TabViewProvider, useTabViewContext } from "./context"
-import { Button } from "../ui/button"
 import { cn } from "cn"
 
 type Props = {

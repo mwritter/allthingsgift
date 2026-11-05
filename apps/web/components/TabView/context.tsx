@@ -1,9 +1,11 @@
-import { createContext, ReactNode, useContext, useState } from "react";
+"use client"
+
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 
 type TabViewContextType = {
     currentTab: string,
     onTabSelect: (tabId: string) => void
-    registerTab: (tab: Tab) => void
 }
 
 export type Tab = {
@@ -13,28 +15,24 @@ export type Tab = {
 
 const TabViewContext = createContext<TabViewContextType>({} as TabViewContextType)
 
-
 export function TabViewProvider({ initalTab, children }: { initalTab: string, children: ReactNode }) {
-    const [currentTab, setCurrentTab] = useState<string>(initalTab)
-    const [tabs, setTabs] = useState<Tab[]>([])
+    const router = useRouter()
+    const searchParams = useSearchParams()
+    const pathname = usePathname()
+    const [currentTab, setCurrentTab] = useState<string>(() => {
+        return searchParams.get('tab') || initalTab
+    })
 
     const onTabSelect = (tabId: string) => {
         setCurrentTab(tabId)
-    }
-
-    const registerTab = (tab: Tab) => {
-        setTabs(cur => {
-            if (!cur.find(t => t.id === tab.id)) {
-                return [...cur, tab]
-            }
-            return cur
-        })
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('tab', tabId)
+        router.push(`${pathname}?${params.toString()}`)
     }
 
     return <TabViewContext value={{
         currentTab,
         onTabSelect,
-        registerTab
     }}>{children}</TabViewContext>
 }
 

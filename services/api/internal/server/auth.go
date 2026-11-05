@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -16,19 +15,12 @@ import (
 // with a one time authentication token
 func (s *Server) requestMagicLink(w http.ResponseWriter, r *http.Request) {
 	var req apitypes.MagicLinkRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
 	err := s.auth.RequestMagicLink(r.Context(), req.Email)
-	if errors.Is(err, auth.ErrInvalidEmail) {
-		writeError(w, http.StatusBadRequest, "invalid email")
-		return
-	}
-	if err != nil {
-		log.Printf("request magic link: %v", err)
-		writeError(w, http.StatusInternalServerError, "could not send magic link")
+	if writeServiceError(w, err, "could not send magic link") {
 		return
 	}
 
@@ -37,23 +29,12 @@ func (s *Server) requestMagicLink(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) verifyLoginCode(w http.ResponseWriter, r *http.Request) {
 	var req apitypes.VerifyLoginCodeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
 	sessionRaw, expiresAt, err := s.auth.VerifyLoginCode(r.Context(), req.Email, req.Code)
-	if errors.Is(err, auth.ErrInvalidEmail) {
-		writeError(w, http.StatusBadRequest, "invalid email")
-		return
-	}
-	if errors.Is(err, auth.ErrInvalidCode) {
-		writeError(w, http.StatusBadRequest, "That code is invalid or has expired.")
-		return
-	}
-	if err != nil {
-		log.Printf("verify login code: %v", err)
-		writeError(w, http.StatusInternalServerError, "could not log in")
+	if writeServiceError(w, err, "could not log in") {
 		return
 	}
 
@@ -86,9 +67,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if cookie != nil {
 		raw = cookie.Value
 	}
-	if err := s.auth.Logout(r.Context(), raw); err != nil {
-		log.Printf("logout: %v", err)
-		writeError(w, http.StatusInternalServerError, "could not log out")
+	if writeServiceError(w, s.auth.Logout(r.Context(), raw), "could not log out") {
 		return
 	}
 	s.clearSessionCookie(w)
@@ -96,11 +75,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) me(w http.ResponseWriter, r *http.Request) {
-	user := UserFromContext(r.Context())
-	if user == nil {
-		writeError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
+	user := currentUser(r)
 	writeJSON(w, http.StatusOK, apitypes.User{
 		ID:          user.ID,
 		Email:       user.Email,
@@ -117,13 +92,7 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 			return
 		}
 		user, err := s.auth.UserFromSession(r.Context(), cookie.Value)
-		if errors.Is(err, auth.ErrUnauthorized) {
-			writeError(w, http.StatusUnauthorized, "unauthorized")
-			return
-		}
-		if err != nil {
-			log.Printf("load session: %v", err)
-			writeError(w, http.StatusInternalServerError, "could not load session")
+		if writeServiceError(w, err, "could not load session") {
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(WithUser(r.Context(), user)))

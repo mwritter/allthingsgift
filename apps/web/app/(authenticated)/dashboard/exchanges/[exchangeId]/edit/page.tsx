@@ -6,8 +6,7 @@ import { DashboardPageHeader } from "@/components/DashboardPageLayout/DashboardP
 import { ExchangeForm, ExchangeValues } from "@/components/ExchangeForm/ExchangeForm"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { fromApiDate, getExchangeById, getExchangeInvites, updateExchange } from "@/lib/exchanges"
-import { ExchangeInviteStatusPending } from "@giftexchanger/types"
+import { fromApiDate, getExchangeById, updateExchange } from "@/lib/exchanges"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { use, useEffect } from "react"
@@ -29,13 +28,6 @@ export default function EditExchange({
     })
 
     const isOrganizer = data?.organizerId === user?.id
-
-    // Only the organizer is allowed to read invites, so don't ask otherwise.
-    const { data: invites, error: invitesError } = useQuery({
-        queryKey: ["exchange", exchangeId, "invites"],
-        queryFn: () => getExchangeInvites(exchangeId),
-        enabled: isOrganizer
-    })
 
     // Only the organizer can edit, so send everyone else back to the details page.
     useEffect(() => {
@@ -59,22 +51,17 @@ export default function EditExchange({
         submit.mutate(exchange)
     }
 
-    const loadError = exchangeError ?? invitesError
-    if (loadError) {
-        return <p className="text-sm text-destructive">{loadError.message}</p>
+    if (exchangeError) {
+        return <p className="text-sm text-destructive">{exchangeError.message}</p>
     }
 
     // The form seeds its defaults once, so wait for the invites before mounting it.
-    if (!data || !invites) {
+    if (!data) {
         return <Spinner className="self-center" />
     }
 
     return <>
-        <DashboardPageHeader title="Edit Exchange" description={data.name}>
-            <Button variant="outline" onClick={() => router.back()}>
-                Cancel
-            </Button>
-        </DashboardPageHeader>
+        <DashboardPageHeader title="Edit Exchange" description={data.name} />
         <DashboardPageContent>
             <ExchangeForm
                 onSubmit={handleSubmit}

@@ -28,7 +28,13 @@ export default function ExchangeDetailsPage({
 
     const { data, error } = useQuery({
         queryKey: ["exchange", exchangeId],
-        queryFn: () => getExchangeById(exchangeId)
+        queryFn: async () => {
+            try {
+                return await getExchangeById(exchangeId)
+            } catch {
+                router.replace('/dashboard/exchanges')
+            }
+        }
     })
 
     const isOrganizer = data?.organizerId === user?.id

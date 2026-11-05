@@ -65,6 +65,25 @@ const (
 	ExchangeInviteStatusRevoked  ExchangeInviteStatus = "revoked"
 )
 
+type UserExchangeInvites struct {
+	ID          string `json:"id"`
+	OrganizerID string `json:"organizerId"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	// Calendar date, YYYY-MM-DD.
+	ExchangeDate         string           `json:"exchangeDate"`
+	BudgetCents          *int             `json:"budgetCents" tstype:"number | null"`
+	State                ExchangeState    `json:"state"`
+	Members              []ExchangeMember `json:"members"`
+	InviteID             string           `json:"inviteId"`
+	OrganizerEmail       string           `json:"organizerEmail"`
+	OrganizerDisplayName string           `json:"organizerDisplayName"`
+}
+
+type ListUserExchangeInvite struct {
+	Invites []UserExchangeInvites `json:"invites"`
+}
+
 // ExchangeInvite is one invite on an exchange. Accepted and declined are the
 // invitee's response. Revoked is the organizer withdrawing a pending invite.
 type ExchangeInvite struct {

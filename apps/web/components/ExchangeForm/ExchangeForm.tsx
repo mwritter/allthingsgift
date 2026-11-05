@@ -9,6 +9,7 @@ import { Input } from '../ui/input'
 import { Button } from '../ui/button'
 import { DatePicker } from '../DatePicker/DatePicker'
 import { Textarea } from '../ui/textarea'
+import { useRouter } from 'next/navigation'
 
 const formSchema = z.object({
     name: z.string().min(2),
@@ -30,6 +31,7 @@ type Props = Partial<ExchangeValues> & {
 }
 
 export function ExchangeForm(props: Props) {
+    const router = useRouter()
     const defaultValues: ExchangeValues = {
         name: props.name ?? "",
         exchangeDate: props.exchangeDate ?? null,
@@ -132,11 +134,14 @@ export function ExchangeForm(props: Props) {
                     }}
                 </FromField>
             </div>
-            <Field>
+            <div className='flex flex-col gap-2 md:flex-row'>
                 <Button type="submit" disabled={props.isLoading}>
                     {props.isLoading ? 'Submitting' : 'Submit'}
                 </Button>
-            </Field>
+                <Button type="button" variant="outline" onClick={() => router.back()}>
+                    Cancel
+                </Button>
+            </div>
         </form>
     </div>
 }

@@ -1,4 +1,11 @@
-import { Gift, Heart, Home, LucideIcon, Settings } from "lucide-react";
+import {
+  Gift,
+  Heart,
+  Home,
+  LucideIcon,
+  PartyPopper,
+  Settings,
+} from "lucide-react";
 
 export type NavLink = {
   href: string;
@@ -13,14 +20,19 @@ export default [
     text: "Home",
   },
   {
+    href: "/dashboard/wishlist",
+    Icon: Heart,
+    text: "My Wishlist",
+  },
+  {
+    href: "/dashboard/celebrations",
+    Icon: PartyPopper,
+    text: "Celebrations",
+  },
+  {
     href: "/dashboard/exchanges",
     Icon: Gift,
     text: "Exchanges",
-  },
-  {
-    href: "/dashboard/wishlist",
-    Icon: Heart,
-    text: "Wishlist",
   },
   {
     href: "/dashboard/settings",
