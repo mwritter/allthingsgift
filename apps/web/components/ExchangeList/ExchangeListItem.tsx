@@ -43,8 +43,8 @@ export function ExchangeListItems({ id, name, exchangeDate, budgetCents, descrip
             </CardContent>
             <CardFooter className="flex justify-between">
                 <p className="text-sm">Created by {isOrganizer ? "you" : organizer?.displayName || organizer?.email}</p>
-                {isOrganizer && <div className="flex gap-2">
-                    <Button nativeButton={false} render={<Link href={`/dashboard/exchanges/${id}/edit`} />} variant="outline">
+                {isOrganizer && <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
+                    <Button className="cursor-default" nativeButton={false} render={<Link href={`/dashboard/exchanges/${id}/edit`} />} variant="outline">
                         <Edit size={12} />
                     </Button>
                     <DeleteExchangeButton exchangeId={id} exchangeName={name} />
