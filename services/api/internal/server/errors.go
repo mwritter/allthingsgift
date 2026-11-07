@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/mwritter/giftexchanger/services/api/internal/auth"
-	"github.com/mwritter/giftexchanger/services/api/internal/exchanges"
+	"github.com/mwritter/allthingsgift/services/api/internal/auth"
+	"github.com/mwritter/allthingsgift/services/api/internal/exchanges"
 )
 
 // serviceError is the HTTP status and client message for a domain sentinel.

@@ -21,8 +21,8 @@ export function Tabs({ tabs }: { tabs: Tab[] }) {
 
     if (tabs.length === 0) return null
 
-    return <div className="flex mb-5 border rounded-md overflow-hidden w-full">
-        {tabs.map(tab => <button className={cn("flex-1 text-sm p-1 not-last:border-r", {
+    return <div className="flex border rounded-md overflow-hidden w-full mb-5">
+        {tabs.filter(t => !t.hidden).map(tab => <button className={cn("flex-1 text-sm p-1 not-last:border-r", {
             "bg-primary text-white": currentTab === tab.id
         })} onClick={() => handleTabClick(tab.id)} key={tab.id}>{tab.title}</button>)}
     </div>

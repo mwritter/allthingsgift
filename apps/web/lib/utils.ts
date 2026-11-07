@@ -1,4 +1,4 @@
-import { ErrorResponse } from "@giftexchanger/types";
+import { ErrorResponse } from "@allthingsgift/types";
 
 export { cn } from "cn";
 

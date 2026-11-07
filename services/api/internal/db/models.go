@@ -32,12 +32,13 @@ type Exchange struct {
 }
 
 type ExchangeInvite struct {
-	ExchangeID string
-	Email      string
-	AcceptedAt pgtype.Timestamptz
-	DeclinedAt pgtype.Timestamptz
-	CreatedAt  time.Time
-	RevokedAt  pgtype.Timestamptz
+	ExchangeID  string
+	Email       string
+	AcceptedAt  pgtype.Timestamptz
+	DeclinedAt  pgtype.Timestamptz
+	CreatedAt   time.Time
+	RevokedAt   pgtype.Timestamptz
+	RequestedAt pgtype.Timestamptz
 }
 
 type ExchangeMember struct {

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GiftExchanger",
+  title: "AllThingsGift",
   description: "A way to give gifts for friends, families, and small groups.",
 };
 

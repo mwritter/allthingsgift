@@ -22,6 +22,10 @@ export interface User {
 }
 export interface MagicLinkRequest {
   email: string;
+  /**
+   * Next is an optional same-app path to open after the email link is used.
+   */
+  next?: string;
 }
 export interface VerifyLoginCodeRequest {
   email: string;
@@ -55,11 +59,23 @@ export interface Exchange {
   state: ExchangeState;
   members: ExchangeMember[];
 }
+/**
+ * ExchangeJoinPreview is the only exchange detail a signed-in person can see
+ * from a join link before the organizer approves them.
+ */
+export interface ExchangeJoinPreview {
+  name: string;
+  exchangeDate: string;
+  description: string;
+  organizerName: string;
+  organizerEmail: string;
+}
 export type ExchangeInviteStatus = string;
 export const ExchangeInviteStatusPending: ExchangeInviteStatus = "pending";
 export const ExchangeInviteStatusAccepted: ExchangeInviteStatus = "accepted";
 export const ExchangeInviteStatusDeclined: ExchangeInviteStatus = "declined";
 export const ExchangeInviteStatusRevoked: ExchangeInviteStatus = "revoked";
+export const ExchangeInviteStatusRequested: ExchangeInviteStatus = "requested";
 export interface UserExchangeInvites {
   id: string;
   organizerId: string;
@@ -105,7 +121,7 @@ export interface CreateExchangeRequest {
 }
 export type UpdateExchangeRequest = CreateExchangeRequest;
 /**
- * ExchangeInviteRequest adds or revokes one invite. Only the organizer may do this.
+ * ExchangeInviteRequest adds or revokes one invite.
  */
 export interface ExchangeInviteRequest {
   email: string;

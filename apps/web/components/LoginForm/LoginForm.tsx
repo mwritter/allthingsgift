@@ -18,11 +18,15 @@ const codeSchema = z.object({
     code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code")
 })
 
-export function LoginForm() {
+type LoginFormProps = {
+    next?: string
+}
+
+export function LoginForm({ next = "/dashboard" }: LoginFormProps) {
     const [sentTo, setSentTo] = useState<string | null>(null)
 
     const sendLink = useMutation({
-        mutationFn: (email: string) => requestMagicLink(email),
+        mutationFn: (email: string) => requestMagicLink(email, next),
         onSuccess: (_, email) => setSentTo(email)
     })
 
@@ -39,7 +43,7 @@ export function LoginForm() {
     })
 
     if (sentTo) {
-        return <LoginCodeForm email={sentTo} onUseDifferentEmail={() => {
+        return <LoginCodeForm email={sentTo} next={next} onUseDifferentEmail={() => {
             sendLink.reset()
             setSentTo(null)
         }} />
@@ -96,17 +100,18 @@ export function LoginForm() {
 
 type LoginCodeFormProps = {
     email: string
+    next: string
     onUseDifferentEmail: () => void
 }
 
 // TODO: Move this
-function LoginCodeForm({ email, onUseDifferentEmail }: LoginCodeFormProps) {
+function LoginCodeForm({ email, next, onUseDifferentEmail }: LoginCodeFormProps) {
     const verify = useMutation({
         mutationFn: (code: string) => verifyLoginCode(email, code),
         // Full navigation: a soft nav keeps the intercepted @login modal slot
         // mounted over /dashboard.
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-        onSuccess: () => window.location.assign("/dashboard")
+        onSuccess: () => window.location.assign(next)
     })
 
     const { handleSubmit, Field: FromField } = useForm({

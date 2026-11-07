@@ -30,12 +30,12 @@ export default async function AuthError({
 
     return <div className="flex flex-1 p-10">
         <Link href={"/"} className="fixed flex items-center gap-2 top-10 left-10 font-bold text-2xl max-sm:hidden">
-            <Gift /> GiftExchanger
+            <Gift /> AllThingsGift
         </Link>
         <div className="flex flex-col justify-center items-center flex-1">
             <div className="flex flex-col items-center gap-6 w-full max-w-120 text-center">
                 <Link href={"/"} className="flex gap-2 items-center font-bold text-xl sm:hidden">
-                    <Gift /> GiftExchanger
+                    <Gift /> AllThingsGift
                 </Link>
                 <div className="space-y-2">
                     <h1 className="text-2xl font-bold tracking-tight">{title}</h1>

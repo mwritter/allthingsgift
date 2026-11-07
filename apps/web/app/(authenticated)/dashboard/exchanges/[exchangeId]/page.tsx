@@ -4,6 +4,7 @@ import { useCurrentUser } from "@/components/CurrentUser/CurrentUserProvider"
 import { DashboardPageContent } from "@/components/DashboardPageLayout/DashboardPageContent"
 import { DashboardPageHeader } from "@/components/DashboardPageLayout/DashboardPageHeader"
 import { DeleteExchangeButton } from "@/components/DeleteExchangeButton/DeleteExchangeButton"
+import { ExchangeInviteShare } from "@/components/ExchangeInvites/ExchangeInviteShare"
 import { ExchangeInvitesTable } from "@/components/ExchangeInvites/ExchangeInvitesTable"
 import { TabView, TabContent, Tabs } from "@/components/TabView/TabView"
 import { Badge } from "@/components/ui/badge"
@@ -15,7 +16,9 @@ import { parseISO } from "date-fns"
 import { ArrowLeft, Calendar, Edit, User2, Wallet } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { use, type ReactNode } from "react"
+import { use, useEffect, type ReactNode } from "react"
+
+// Share links to /dashboard/exchanges/[exchangeId]/join. The organizer approves or revokes.
 
 export default function ExchangeDetailsPage({
     params,
@@ -28,14 +31,15 @@ export default function ExchangeDetailsPage({
 
     const { data, error } = useQuery({
         queryKey: ["exchange", exchangeId],
-        queryFn: async () => {
-            try {
-                return await getExchangeById(exchangeId)
-            } catch {
-                router.replace('/dashboard/exchanges')
-            }
-        }
+        queryFn: () => getExchangeById(exchangeId),
+        retry: false,
     })
+
+    useEffect(() => {
+        if (error && user) {
+            router.replace("/dashboard/exchanges")
+        }
+    }, [error, user, router])
 
     const isOrganizer = data?.organizerId === user?.id
 
@@ -47,35 +51,40 @@ export default function ExchangeDetailsPage({
         return <Spinner className="self-center" />
     }
 
-    const tabs = isOrganizer ? [{
+    const tabs = [{
         id: 'details',
-        title: "Details"
+        title: "Details",
     },
     {
         id: 'invites',
-        title: 'Invites'
-    }] : []
+        title: 'Invites',
+        hidden: !isOrganizer
+    },
+    {
+        id: 'share',
+        title: 'Share'
+    }
+    ]
 
     return <>
-        <DashboardPageHeader title={data.name} description={data.description}>
-            <div className="flex gap-2">
-                <Button nativeButton={false} render={<Link href="/dashboard/exchanges" />} variant="outline">
-                    <ArrowLeft size={12} />
-                    Back
+        <DashboardPageHeader title={data.name} description={data.description} />
+        <div className="flex gap-2">
+            <Button nativeButton={false} render={<Link href="/dashboard/exchanges" />} variant="outline">
+                <ArrowLeft size={12} />
+                Back
+            </Button>
+            {isOrganizer && <>
+                <Button nativeButton={false} render={<Link href={`/dashboard/exchanges/${exchangeId}/edit`} />} variant="outline">
+                    <Edit size={12} />
+                    Edit
                 </Button>
-                {isOrganizer && <>
-                    <Button nativeButton={false} render={<Link href={`/dashboard/exchanges/${exchangeId}/edit`} />} variant="outline">
-                        <Edit size={12} />
-                        Edit
-                    </Button>
-                    <DeleteExchangeButton
-                        exchangeId={exchangeId}
-                        exchangeName={data.name}
-                        onDeleted={() => router.replace("/dashboard/exchanges")}
-                    />
-                </>}
-            </div>
-        </DashboardPageHeader>
+                <DeleteExchangeButton
+                    exchangeId={exchangeId}
+                    exchangeName={data.name}
+                    onDeleted={() => router.replace("/dashboard/exchanges")}
+                />
+            </>}
+        </div>
         <DashboardPageContent>
             <TabView initialTab="details">
                 <Tabs tabs={tabs} />
@@ -103,6 +112,9 @@ export default function ExchangeDetailsPage({
                 {isOrganizer && <TabContent id="invites">
                     <ExchangeInvitesTable exchangeId={exchangeId} />
                 </TabContent>}
+                <TabContent id="share">
+                    <ExchangeInviteShare exchangeId={exchangeId} />
+                </TabContent>
             </TabView>
         </DashboardPageContent>
     </>

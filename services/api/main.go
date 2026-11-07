@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/mwritter/giftexchanger/services/api/internal/auth"
-	"github.com/mwritter/giftexchanger/services/api/internal/exchanges"
-	"github.com/mwritter/giftexchanger/services/api/internal/mailer"
-	"github.com/mwritter/giftexchanger/services/api/internal/server"
+	"github.com/mwritter/allthingsgift/services/api/internal/auth"
+	"github.com/mwritter/allthingsgift/services/api/internal/exchanges"
+	"github.com/mwritter/allthingsgift/services/api/internal/mailer"
+	"github.com/mwritter/allthingsgift/services/api/internal/server"
 )
 
 func main() {

@@ -3,7 +3,7 @@ import { DashboardPageHeader } from "@/components/DashboardPageLayout/DashboardP
 
 export default function SettingsPage() {
     return <>
-        <DashboardPageHeader title="Settings" description="GiftExchanger Settings" />
+        <DashboardPageHeader title="Settings" description="AllThingsGift Settings" />
         <DashboardPageContent>
             Setting Page
         </DashboardPageContent>

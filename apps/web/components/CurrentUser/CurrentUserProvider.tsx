@@ -26,9 +26,13 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
 
     const logoutCurrentUser = useMutation({
         mutationFn: logout,
-        onSuccess: () => {
+        onSuccess: async () => {
+            await queryClient.cancelQueries()
             queryClient.setQueryData(["user"], null)
-            queryClient.removeQueries({ predicate: query => query.queryKey[0] !== "user" })
+            queryClient.removeQueries({
+                type: "inactive",
+                predicate: query => query.queryKey[0] !== "user",
+            })
             router.replace("/")
         }
     })

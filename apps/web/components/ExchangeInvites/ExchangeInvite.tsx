@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Check, User2, Wallet, X } from "lucide-react";
-import type { Exchange } from "@giftexchanger/types";
+import type { Exchange } from "@allthingsgift/types";
 import { parseISO } from "date-fns";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { acceptExchangeInvite, declineExchangeInvite } from "@/lib/exchanges";

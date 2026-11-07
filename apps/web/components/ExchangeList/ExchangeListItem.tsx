@@ -5,22 +5,28 @@ import { DeleteExchangeButton } from "@/components/DeleteExchangeButton/DeleteEx
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Edit, User2, Wallet } from "lucide-react";
-import type { Exchange } from "@giftexchanger/types";
+import type { Exchange } from "@allthingsgift/types";
 import { parseISO } from "date-fns";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export function ExchangeListItems({ id, name, exchangeDate, budgetCents, description, members, organizerId }: Exchange) {
+    const router = useRouter()
     const { user } = useCurrentUser()
     const isOrganizer = organizerId === user?.id
 
     const organizer = members.find(member => member.isOrganizer)
     const membersText = members.length > 1 ? 'members' : 'member'
 
+    const navigateToExchangeDetails = () => {
+        router.push(`/dashboard/exchanges/${id}`)
+    }
+
     return <li>
-        <Card>
+        <Card className="bg-white hover:bg-secondary/50 transition-all duration-500 cursor-pointer" onClick={navigateToExchangeDetails}>
             <CardHeader>
                 <CardTitle>
-                    <Link href={`/dashboard/exchanges/${id}`} className="hover:underline">{name}</Link>
+                    <p>{name}</p>
                 </CardTitle>
                 <CardDescription>{description}</CardDescription>
             </CardHeader>

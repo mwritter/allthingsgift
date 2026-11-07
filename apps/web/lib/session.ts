@@ -1,8 +1,13 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
 import { SESSION_COOKIE_NAME, type User } from "@/lib/auth";
+import { safeNextPath } from "@/lib/redirect";
+
+// Set by middleware on dashboard requests so an invalid session can return
+// to the page that was opened.
+const REQUEST_PATH_HEADER = "x-pathname";
 
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
 
@@ -31,7 +36,10 @@ export async function requireUser(): Promise<User> {
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/login");
+    const path = safeNextPath(
+      (await headers()).get(REQUEST_PATH_HEADER) ?? undefined,
+    );
+    redirect(path ? `/login?next=${encodeURIComponent(path)}` : "/login");
   }
 
   return user;

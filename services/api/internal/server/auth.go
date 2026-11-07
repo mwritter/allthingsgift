@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/mwritter/giftexchanger/services/api/internal/apitypes"
-	"github.com/mwritter/giftexchanger/services/api/internal/auth"
+	"github.com/mwritter/allthingsgift/services/api/internal/apitypes"
+	"github.com/mwritter/allthingsgift/services/api/internal/auth"
 )
 
 // Magic link allows user to login via a link sent to their email
@@ -19,7 +19,7 @@ func (s *Server) requestMagicLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := s.auth.RequestMagicLink(r.Context(), req.Email)
+	err := s.auth.RequestMagicLink(r.Context(), req.Email, req.Next)
 	if writeServiceError(w, err, "could not send magic link") {
 		return
 	}
@@ -43,7 +43,7 @@ func (s *Server) verifyLoginCode(w http.ResponseWriter, r *http.Request) {
 }
 
 // Auth callback sets the authorization token in the users browser
-// then redirects to the app entry point
+// then redirects to the return path, or the app entry point.
 func (s *Server) authCallback(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	sessionRaw, expiresAt, err := s.auth.ConsumeMagicLink(r.Context(), token)
@@ -58,7 +58,7 @@ func (s *Server) authCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.setSessionCookie(w, sessionRaw, expiresAt)
-	http.Redirect(w, r, s.auth.EntryURL(), http.StatusSeeOther)
+	http.Redirect(w, r, s.auth.LoginRedirect(r.URL.Query().Get("next")), http.StatusSeeOther)
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {

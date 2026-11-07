@@ -1,4 +1,4 @@
-import { User } from "@giftexchanger/types";
+import { User } from "@allthingsgift/types";
 
 export type StatusResponse = {
   status: string;

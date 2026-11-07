@@ -12,7 +12,7 @@ func TestRenderLogin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if email.Subject != "Your GiftExchanger login code: 123456" {
+	if email.Subject != "Your AllThingsGift login code: 123456" {
 		t.Errorf("subject = %q", email.Subject)
 	}
 	for name, body := range map[string]string{"text": email.Text, "html": email.HTML} {

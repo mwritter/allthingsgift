@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	logmailer "github.com/mwritter/giftexchanger/services/api/internal/mailer/LogMailer"
-	resendmailer "github.com/mwritter/giftexchanger/services/api/internal/mailer/ResendMailer"
+	logmailer "github.com/mwritter/allthingsgift/services/api/internal/mailer/LogMailer"
+	resendmailer "github.com/mwritter/allthingsgift/services/api/internal/mailer/ResendMailer"
 )
 
 type Mailer interface {

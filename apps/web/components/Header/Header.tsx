@@ -11,7 +11,7 @@ export function Header() {
     return <div className="flex items-center w-full">
         <div className="flex-1 flex gap-2 items-center">
             <Gift />
-            <p className="text-2xl font-bold">GiftExchanger</p>
+            <p className="text-2xl font-bold">AllThingsGift</p>
         </div>
         {
             isLoading ? null : user

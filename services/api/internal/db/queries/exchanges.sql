@@ -38,6 +38,7 @@ WHERE invitee.id = sqlc.arg(user_id)
     AND invite.accepted_at IS NULL
     AND invite.declined_at IS NULL
     AND invite.revoked_at IS NULL
+    AND invite.requested_at IS NULL
 ORDER BY invite.created_at;
 
 -- name: GetExchangeForUser :one
@@ -56,6 +57,19 @@ WHERE e.id::text = sqlc.arg(exchange_id)::text;
 
 -- name: GetExchangeOrganizerID :one
 SELECT organizer_id FROM exchanges WHERE id::text = sqlc.arg(exchange_id)::text;
+
+-- name: GetExchangeJoinPreview :one
+-- Enough for someone holding a join link to recognize the exchange.
+-- budget, members stay off this read.
+SELECT
+    e.name,
+    COALESCE(to_char(e.exchange_date, 'YYYY-MM-DD'), '')::text AS exchange_date,
+    e.exchange_description,
+    u.display_name AS organizer_name,
+    u.email AS organizer_email
+FROM exchanges e
+JOIN users u ON u.id = e.organizer_id
+WHERE e.id::text = sqlc.arg(exchange_id)::text;
 
 -- name: ListMembersForExchanges :many
 SELECT m.exchange_id, u.id AS user_id, u.email, u.display_name
@@ -84,9 +98,26 @@ RETURNING id;
 INSERT INTO exchange_members (exchange_id, user_id)
 VALUES (sqlc.arg(exchange_id), sqlc.arg(user_id));
 
+-- name: InsertExchangeMemberByEmail :execrows
+-- Inserts the account for this email. Zero rows means that account does not exist.
+INSERT INTO exchange_members (exchange_id, user_id)
+SELECT sqlc.arg(exchange_id)::uuid, u.id
+FROM users u
+WHERE lower(u.email) = sqlc.arg(email);
+
 -- name: InsertExchangeInvite :exec
 INSERT INTO exchange_invites (exchange_id, email)
 VALUES (sqlc.arg(exchange_id), sqlc.arg(email));
+
+-- name: InsertExchangeInviteRequested :exec
+-- First request records requested_at. A repeat for the same exchange and email
+-- is a no-op so the original timestamp stays put. The id is matched as text so
+-- a malformed id inserts nothing instead of raising a uuid error.
+INSERT INTO exchange_invites (exchange_id, email, requested_at)
+SELECT e.id, sqlc.arg(email), now()
+FROM exchanges e
+WHERE e.id::text = sqlc.arg(exchange_id)::text
+ON CONFLICT (exchange_id, lower(email)) DO NOTHING;
 
 -- name: UpdateExchange :execrows
 UPDATE exchanges
@@ -102,7 +133,8 @@ SELECT
     lower(email)::text AS email,
     (accepted_at IS NOT NULL)::bool AS accepted,
     (declined_at IS NOT NULL)::bool AS declined,
-    (revoked_at IS NOT NULL)::bool AS revoked
+    (revoked_at IS NOT NULL)::bool AS revoked,
+    (requested_at IS NOT NULL)::bool AS requested
 FROM exchange_invites
 WHERE exchange_id::text = sqlc.arg(exchange_id)::text;
 
@@ -111,7 +143,8 @@ SELECT
     lower(email)::text AS email,
     (accepted_at IS NOT NULL)::bool AS accepted,
     (declined_at IS NOT NULL)::bool AS declined,
-    (revoked_at IS NOT NULL)::bool AS revoked
+    (revoked_at IS NOT NULL)::bool AS revoked,
+    (requested_at IS NOT NULL)::bool AS requested
 FROM exchange_invites
 WHERE exchange_id::text = sqlc.arg(exchange_id)::text
     AND lower(email) = sqlc.arg(email);
@@ -125,6 +158,7 @@ WHERE exchange_id::text = sqlc.arg(exchange_id)::text
     AND accepted_at IS NULL;
 
 -- name: RevokeInvite :execrows
+-- Organizer revoked invite
 UPDATE exchange_invites
 SET accepted_at = NULL,
     revoked_at = now()
@@ -134,15 +168,29 @@ WHERE exchange_id::text = sqlc.arg(exchange_id)::text
     AND revoked_at IS NULL;
 
 -- name: AcceptInvite :execrows
+-- Users can only accept an invite that is not set yet
 UPDATE exchange_invites
 SET accepted_at = now()
 WHERE exchange_id::text = sqlc.arg(exchange_id)::text
     AND lower(email) = sqlc.arg(email)
     AND accepted_at IS NULL
     AND declined_at IS NULL
-    AND revoked_at IS NULL;
+    AND revoked_at IS NULL
+    AND requested_at IS NULL;
+
+-- name: AcceptRequestedInvite :execrows
+-- Organizer can only accept requested invites
+UPDATE exchange_invites
+SET accepted_at = now()
+WHERE exchange_id::text = sqlc.arg(exchange_id)::text
+    AND lower(email) = sqlc.arg(email)
+    AND accepted_at IS NULL
+    AND declined_at IS NULL
+    AND revoked_at IS NULL
+    AND requested_at IS NOT NULL;
 
 -- name: DeclineInvite :execrows
+-- User can decline an invite, Organizers revoke
 UPDATE exchange_invites
 SET declined_at = now()
 WHERE exchange_id::text = sqlc.arg(exchange_id)::text

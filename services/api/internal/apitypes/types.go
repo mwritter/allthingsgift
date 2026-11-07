@@ -19,6 +19,8 @@ type User struct {
 
 type MagicLinkRequest struct {
 	Email string `json:"email"`
+	// Next is an optional same-app path to open after the email link is used.
+	Next string `json:"next,omitempty"`
 }
 
 type VerifyLoginCodeRequest struct {
@@ -56,13 +58,24 @@ type Exchange struct {
 	Members      []ExchangeMember `json:"members"`
 }
 
+// ExchangeJoinPreview is the only exchange detail a signed-in person can see
+// from a join link before the organizer approves them.
+type ExchangeJoinPreview struct {
+	Name                string `json:"name"`
+	ExchangeDate        string `json:"exchangeDate"`
+	ExchangeDescription string `json:"description"`
+	OrganizerName       string `json:"organizerName"`
+	OrganizerEmail      string `json:"organizerEmail"`
+}
+
 type ExchangeInviteStatus string
 
 const (
-	ExchangeInviteStatusPending  ExchangeInviteStatus = "pending"
-	ExchangeInviteStatusAccepted ExchangeInviteStatus = "accepted"
-	ExchangeInviteStatusDeclined ExchangeInviteStatus = "declined"
-	ExchangeInviteStatusRevoked  ExchangeInviteStatus = "revoked"
+	ExchangeInviteStatusPending   ExchangeInviteStatus = "pending"
+	ExchangeInviteStatusAccepted  ExchangeInviteStatus = "accepted"
+	ExchangeInviteStatusDeclined  ExchangeInviteStatus = "declined"
+	ExchangeInviteStatusRevoked   ExchangeInviteStatus = "revoked"
+	ExchangeInviteStatusRequested ExchangeInviteStatus = "requested"
 )
 
 type UserExchangeInvites struct {
@@ -107,7 +120,7 @@ type CreateExchangeRequest struct {
 
 type UpdateExchangeRequest = CreateExchangeRequest
 
-// ExchangeInviteRequest adds or revokes one invite. Only the organizer may do this.
+// ExchangeInviteRequest adds or revokes one invite.
 type ExchangeInviteRequest struct {
 	Email string `json:"email"`
 }

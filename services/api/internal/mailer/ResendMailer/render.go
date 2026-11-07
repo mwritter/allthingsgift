@@ -36,7 +36,7 @@ type inviteData struct {
 
 func renderLogin(url, code string, ttl time.Duration) (renderedEmail, error) {
 	data := loginData{Code: code, URL: url, Expiry: humanizeDuration(ttl)}
-	return render("login", "Your GiftExchanger login code: "+code, data)
+	return render("login", "Your AllThingsGift login code: "+code, data)
 }
 
 func renderInvite(exchangeName, url string) (renderedEmail, error) {

@@ -3,11 +3,12 @@ import {
   ExchangeInviteStatusPending,
   type CreateExchangeRequest,
   type Exchange,
+  type ExchangeJoinPreview,
   type ExchangeInvite,
   type ListExchangeInvitesResponse,
   type ListExchangesResponse,
   type ListUserExchangeInvite,
-} from "@giftexchanger/types";
+} from "@allthingsgift/types";
 import { format, isValid, parseISO } from "date-fns";
 import { apiErrorMessage } from "./utils";
 
@@ -41,6 +42,18 @@ export async function getExchanges() {
   }
 
   return (await response.json()) as ListExchangesResponse;
+}
+
+export async function getExchangeJoinPreview(exchangeId: string) {
+  const response = await fetch(`/api/exchanges/${exchangeId}/join`);
+
+  if (!response.ok) {
+    throw new Error(
+      await apiErrorMessage(response, "We could not get that exchange."),
+    );
+  }
+
+  return (await response.json()) as ExchangeJoinPreview;
 }
 
 export async function getExchangeById(exchangeId: string) {
@@ -193,6 +206,48 @@ export async function declineExchangeInvite(exchangeId: string) {
   if (!response.ok) {
     throw new Error(
       await apiErrorMessage(response, "We could not decline exchange invite."),
+    );
+  }
+
+  return await response.json();
+}
+
+export async function userRequestExchangeInvite(exchangeId: string) {
+  const response = await fetch(`/api/exchanges/${exchangeId}/join`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await apiErrorMessage(response, "We could not request exchange invite."),
+    );
+  }
+
+  return await response.json();
+}
+
+export async function acceptUserRequestedExchangeInvite({
+  exchangeId,
+  email,
+}: {
+  exchangeId: string;
+  email: string;
+}) {
+  const response = await fetch(
+    `/api/exchanges/${exchangeId}/invites/accept-request`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await apiErrorMessage(
+        response,
+        "Could not accept the requested exchange invite.",
+      ),
     );
   }
 

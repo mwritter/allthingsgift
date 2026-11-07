@@ -10,7 +10,8 @@ type TabViewContextType = {
 
 export type Tab = {
     id: string,
-    title: string
+    title: string,
+    hidden?: boolean
 }
 
 const TabViewContext = createContext<TabViewContextType>({} as TabViewContextType)

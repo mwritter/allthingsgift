@@ -1,24 +1,27 @@
 import { LoginForm } from "@/components/LoginForm/LoginForm"
+import { safeNextPath } from "@/lib/redirect"
 import { getCurrentUser } from "@/lib/session"
 import { Gift } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 
-export default async function Login() {
+export default async function Login({ searchParams }: PageProps<"/login">) {
+    const { next } = await searchParams
+    const destination = safeNextPath(next) ?? "/dashboard"
     if (await getCurrentUser()) {
-        redirect("/dashboard")
+        redirect(destination)
     }
 
     return <div className="flex flex-1 p-10">
         <Link href={"/"} className="fixed flex items-center gap-2 top-10 left-10 font-bold text-2xl max-sm:hidden">
-            <Gift /> GiftExchanger
+            <Gift /> AllThingsGift
         </Link>
         <div className="flex flex-col justify-center items-center flex-1">
             <div className="flex flex-col items-center w-full max-w-120">
                 <Link href={"/"} className="flex gap-2 items-center font-bold text-xl sm:hidden max-sm:mb-10">
-                    <Gift /> GiftExchanger
+                    <Gift /> AllThingsGift
                 </Link>
-                <LoginForm />
+                <LoginForm next={destination} />
             </div>
         </div>
     </div>

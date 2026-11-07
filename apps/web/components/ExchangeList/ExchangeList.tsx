@@ -1,4 +1,4 @@
-import type { Exchange } from "@giftexchanger/types"
+import type { Exchange } from "@allthingsgift/types"
 import { ExchangeListItems } from "./ExchangeListItem"
 
 type Props = {

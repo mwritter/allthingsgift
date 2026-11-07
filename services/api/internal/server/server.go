@@ -5,8 +5,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/mwritter/giftexchanger/services/api/internal/auth"
-	"github.com/mwritter/giftexchanger/services/api/internal/exchanges"
+	"github.com/mwritter/allthingsgift/services/api/internal/auth"
+	"github.com/mwritter/allthingsgift/services/api/internal/exchanges"
 )
 
 type Server struct {
@@ -32,6 +32,9 @@ func New(pool *pgxpool.Pool, authService *auth.Service, exchangesService *exchan
 			r.Use(s.requireAuth)
 			r.Get("/me", s.me)
 
+			r.Get("/exchanges/{exchangeID}/join", s.getExchangeJoinPreview)
+			r.Post("/exchanges/{exchangeID}/join", s.requestJoinExchange)
+
 			r.Get("/exchanges", s.getExchanges)
 			r.Get("/exchanges/{exchangeID}", s.getExchange)
 			r.Get("/exchanges/invites", s.getUserExchangeInvites)
@@ -39,6 +42,7 @@ func New(pool *pgxpool.Pool, authService *auth.Service, exchangesService *exchan
 			r.Post("/exchanges/{exchangeID}/invites", s.addExchangeInvite)
 			r.Delete("/exchanges/{exchangeID}/invites", s.revokeExchangeInvite)
 			r.Post("/exchanges/{exchangeID}/invites/accept", s.acceptExchangeInvite)
+			r.Post("/exchanges/{exchangeID}/invites/accept-request", s.acceptExchangeRequestedInvite)
 			r.Post("/exchanges/{exchangeID}/invites/decline", s.declineExchangeInvite)
 			r.Post("/exchanges", s.createExchange)
 			r.Put("/exchanges/{exchangeID}", s.updateExchange)

@@ -1,6 +1,6 @@
 You're invited to {{.ExchangeName}}
 
-You've been invited to join a gift exchange on GiftExchanger. Sign in with this email address to accept the invite and add your wishlist:
+You've been invited to join a gift exchange on AllThingsGift. Sign in with this email address to accept the invite and add your wishlist:
 
 {{.URL}}
 

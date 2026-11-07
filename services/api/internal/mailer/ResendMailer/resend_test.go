@@ -30,12 +30,12 @@ func TestResendMailerSendLoginEmail(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	m := ResendMailer{APIKey: "re_test", From: "GiftExchanger <hello@example.com>", BaseURL: srv.URL}
+	m := ResendMailer{APIKey: "re_test", From: "AllThingsGift <hello@example.com>", BaseURL: srv.URL}
 	if err := m.SendLoginEmail(context.Background(), "a@example.com", "https://example.com/cb", "654321"); err != nil {
 		t.Fatal(err)
 	}
 
-	if got.From != "GiftExchanger <hello@example.com>" {
+	if got.From != "AllThingsGift <hello@example.com>" {
 		t.Errorf("from = %q", got.From)
 	}
 	if len(got.To) != 1 || got.To[0] != "a@example.com" {

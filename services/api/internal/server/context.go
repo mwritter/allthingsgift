@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/mwritter/giftexchanger/services/api/internal/auth"
+	"github.com/mwritter/allthingsgift/services/api/internal/auth"
 )
 
 type userContextKey struct{}

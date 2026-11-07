@@ -6,14 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"net/mail"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/mwritter/giftexchanger/services/api/internal/db"
-	"github.com/mwritter/giftexchanger/services/api/internal/mailer"
+	"github.com/mwritter/allthingsgift/services/api/internal/db"
+	"github.com/mwritter/allthingsgift/services/api/internal/mailer"
 )
 
 var (
@@ -52,7 +53,7 @@ func (c Config) withDefaults() Config {
 		c.SessionTTL = 30 * 24 * time.Hour
 	}
 	if c.CookieName == "" {
-		c.CookieName = "giftexchanger_session"
+		c.CookieName = "allthingsgift_session"
 	}
 	return c
 }
@@ -93,7 +94,33 @@ func NormalizeEmail(raw string) (string, error) {
 	return email, nil
 }
 
-func (s *Service) RequestMagicLink(ctx context.Context, rawEmail string) error {
+// LoginRedirect is where a finished login should land. next is used only when
+// it is a path on this app; anything else falls back to the entry URL.
+func (s *Service) LoginRedirect(next string) string {
+	if path := safeNextPath(next); path != "" {
+		return s.BaseURL() + path
+	}
+	return s.EntryURL()
+}
+
+// safeNextPath keeps a login return path on this app. An absolute URL, a
+// protocol-relative URL, or a non-path is rejected.
+func safeNextPath(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || strings.ContainsAny(raw, "\\\r\n") {
+		return ""
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.Opaque != "" {
+		return ""
+	}
+	if !strings.HasPrefix(parsed.Path, "/") || strings.HasPrefix(parsed.Path, "//") {
+		return ""
+	}
+	return parsed.RequestURI()
+}
+
+func (s *Service) RequestMagicLink(ctx context.Context, rawEmail, next string) error {
 	email, err := NormalizeEmail(rawEmail)
 	if err != nil {
 		return err
@@ -136,6 +163,9 @@ func (s *Service) RequestMagicLink(ctx context.Context, rawEmail string) error {
 	}
 
 	link := fmt.Sprintf("%s/api/auth/callback?token=%s", s.BaseURL(), raw)
+	if path := safeNextPath(next); path != "" {
+		link += "&next=" + url.QueryEscape(path)
+	}
 	if err := s.mailer.SendLoginEmail(ctx, email, link, code); err != nil {
 		return fmt.Errorf("send login email: %w", err)
 	}

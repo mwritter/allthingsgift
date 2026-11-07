@@ -1,4 +1,4 @@
-# GiftExchanger
+# AllThingsGift
 
 Self-hostable Secret Santa for friends, families, and small groups.
 
@@ -23,12 +23,12 @@ To send real email:
 
    ```sh
    RESEND_API_KEY=re_...
-   MAIL_FROM="GiftExchanger <hello@your-verified-domain.com>"
+   MAIL_FROM="AllThingsGift <hello@your-verified-domain.com>"
    ```
 
 Without a verified domain, Resend only allows sending from `onboarding@resend.dev` to your own Resend account's address, which is fine for a quick test.
 
 ## Status
 
-GiftExchanger is in early development. Local setup and a public demo are coming.
+AllThingsGift is in early development. Local setup and a public demo are coming.
 

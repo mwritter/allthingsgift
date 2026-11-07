@@ -2,15 +2,18 @@ import type {
   MagicLinkRequest,
   User,
   VerifyLoginCodeRequest,
-} from "@giftexchanger/types";
+} from "@allthingsgift/types";
 import { apiErrorMessage } from "./utils";
 
 export type { User };
 
-export const SESSION_COOKIE_NAME = "giftexchanger_session";
+export const SESSION_COOKIE_NAME = "allthingsgift_session";
 
-export async function requestMagicLink(email: string): Promise<void> {
-  const body: MagicLinkRequest = { email };
+export async function requestMagicLink(
+  email: string,
+  next?: string,
+): Promise<void> {
+  const body: MagicLinkRequest = { email, next };
   const response = await fetch("/api/auth/magic-link", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

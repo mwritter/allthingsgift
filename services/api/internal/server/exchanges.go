@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/mwritter/giftexchanger/services/api/internal/apitypes"
-	"github.com/mwritter/giftexchanger/services/api/internal/exchanges"
+	"github.com/mwritter/allthingsgift/services/api/internal/apitypes"
+	"github.com/mwritter/allthingsgift/services/api/internal/exchanges"
 )
 
 func (s *Server) getExchanges(w http.ResponseWriter, r *http.Request) {
@@ -19,6 +19,19 @@ func (s *Server) getExchanges(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, apitypes.ListExchangesResponse{
 		Exchanges: result,
 	})
+}
+
+func (s *Server) getExchangeJoinPreview(w http.ResponseWriter, r *http.Request) {
+	user := currentUser(r)
+
+	result, err := s.exchanges.GetExchangeJoinPreview(r.Context(), user.ID, chi.URLParam(r, "exchangeID"))
+	if writeServiceError(w, err, "could not get exchange",
+		withMessage(exchanges.ErrAlreadyJoined, "You have already joined"),
+	) {
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *Server) getExchange(w http.ResponseWriter, r *http.Request) {
@@ -141,6 +154,27 @@ func (s *Server) revokeExchangeInvite(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, invite)
 }
 
+func (s *Server) acceptExchangeRequestedInvite(w http.ResponseWriter, r *http.Request) {
+	var req apitypes.ExchangeInviteRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+
+	user := currentUser(r)
+
+	err := s.exchanges.AcceptRequestedInvite(r.Context(), chi.URLParam(r, "exchangeID"), user.ID, req.Email)
+
+	if writeServiceError(w, err, "could not accept requested invite",
+		withMessage(exchanges.ErrAlreadyJoined, "This user has already joined"),
+		withMessage(exchanges.ErrInviteDeclined, "This user has already declined this invite"),
+	) {
+		return
+	}
+
+	writeJSON(w, http.StatusOK, nil)
+
+}
+
 func (s *Server) acceptExchangeInvite(w http.ResponseWriter, r *http.Request) {
 	user := currentUser(r)
 
@@ -168,5 +202,18 @@ func (s *Server) declineExchangeInvite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, nil)
+}
 
+func (s *Server) requestJoinExchange(w http.ResponseWriter, r *http.Request) {
+	user := currentUser(r)
+
+	err := s.exchanges.UserRequestExchangeInvite(r.Context(), chi.URLParam(r, "exchangeID"), user.ID, user.Email)
+	if writeServiceError(w, err, "could not request invite",
+		withMessage(exchanges.ErrInviteSelf, "You already organize this exchange"),
+		withMessage(exchanges.ErrAlreadyJoined, "You have already joined"),
+	) {
+		return
+	}
+
+	writeJSON(w, http.StatusOK, nil)
 }

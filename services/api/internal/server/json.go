@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/mwritter/giftexchanger/services/api/internal/apitypes"
+	"github.com/mwritter/allthingsgift/services/api/internal/apitypes"
 )
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
