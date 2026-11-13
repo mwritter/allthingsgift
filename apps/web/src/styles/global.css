@@ -1,0 +1,7 @@
+@import "@allthingsgift/ui/globals.css";
+@source "../";
+
+
+body {
+    background: linear-gradient(to right, white, #fcf6ee);
+}

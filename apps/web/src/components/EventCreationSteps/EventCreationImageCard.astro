@@ -1,0 +1,31 @@
+---
+interface Props {
+  title: string;
+  imageUrl: string;
+}
+
+const { title, imageUrl } = Astro.props;
+---
+
+<div
+  class="relative event-image-card shadow-md"
+  style={{
+    backgroundImage: `url(${imageUrl})`,
+  }}
+>
+  <p class="absolute -top-6 left-[50%] translate-x-[-50%] opacity-50 text-xs">
+    {title}
+  </p>
+</div>
+
+<style>
+  .event-image-card {
+    width: 100%;
+    aspect-ratio: 1;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+</style>

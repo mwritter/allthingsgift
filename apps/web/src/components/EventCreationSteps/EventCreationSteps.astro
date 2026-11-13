@@ -1,0 +1,46 @@
+---
+import EventCreationImageCard from "./EventCreationImageCard.astro";
+---
+
+<!-- TODO: show side by side in a fan, on resize fan gets closer together --><!-- On small screen moves to the next row stays fan -->
+<div>
+  <div class="container">
+    <EventCreationImageCard title="Create" imageUrl="/step-1-create.png" />
+    <EventCreationImageCard title="Invite" imageUrl="/step-2-invite.png" />
+    <EventCreationImageCard title="Enjoy" imageUrl="/step-3-all-set.png" />
+  </div>
+</div>
+
+<style>
+  .container {
+    max-width: 900px;
+    justify-self: center;
+    display: flex;
+
+    :nth-child(1).event-image-card {
+      z-index: 2;
+      transform: rotate(-5deg) translateX(-5%) translateY(5%);
+      transition: all 500ms;
+
+      &:hover {
+        transform: rotate(0deg) translateX(-5%) translateY(-10%);
+      }
+    }
+    :nth-child(2).event-image-card {
+      z-index: 1;
+      transition: all 500ms;
+      &:hover {
+        transform: translateY(-10%);
+      }
+    }
+    :nth-child(3).event-image-card {
+      z-index: 2;
+      transform: rotate(5deg) translateX(5%) translateY(5%);
+      transition: all 500ms;
+
+      &:hover {
+        transform: rotate(0deg) translateX(5%) translateY(-10%);
+      }
+    }
+  }
+</style>

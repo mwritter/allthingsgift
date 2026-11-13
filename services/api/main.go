@@ -33,7 +33,7 @@ func main() {
 	authService := auth.NewService(pool, mailerService, auth.Config{
 		BaseURL:      baseURL,
 		EntryURL:     envOr("APP_ENTRY_URL", baseURL+"/dashboard"),
-		ErrorURL:     envOr("APP_ERROR_URL", baseURL+"/auth/error"),
+		ErrorURL:     envOr("APP_ERROR_URL", baseURL+"/dashboard/auth/error"),
 		MagicLinkTTL: magicLinkTTL,
 		SessionTTL:   durationOr("SESSION_TTL", 30*24*time.Hour),
 		CookieSecure: boolOr("COOKIE_SECURE", false),

@@ -1,0 +1,24 @@
+---
+import { Calendar, Gift, Heart } from "@lucide/astro";
+import FeatureHightlightItem from "./FeatureHightlightItem.astro";
+---
+
+<section class="">
+  <div class="grid md:grid-cols-3 justify-center gap-5 max-w-250 mx-auto p-10">
+    <FeatureHightlightItem
+      title="Wishlist"
+      description="Share what you'd love to receive."
+      icon={Heart}
+    />
+    <FeatureHightlightItem
+      title="Celebrations"
+      description="Kepp birthdays, holidays, and special occasions organized."
+      icon={Calendar}
+    />
+    <FeatureHightlightItem
+      title="Gift Exchanges"
+      description="Bring groups together and take the hassle out of gifting."
+      icon={Gift}
+    />
+  </div>
+</section>

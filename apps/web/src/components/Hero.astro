@@ -1,0 +1,37 @@
+---
+import { buttonVariants } from "@allthingsgift/ui/components/button";
+import { ArrowRight } from "@lucide/astro";
+---
+
+<div class="grid md:grid-cols-2 justify-center items-center p-10">
+  <div class="flex flex-col gap-6 justify-center w-full">
+    <h1 class="text-5xl font-bold whitespace-nowrap heading-text">
+      <span class="block">Make every</span>
+      <span class="block">occasion a little</span>
+      <span class="block">more special.</span>
+    </h1>
+    <p>
+      Everything you need to create gift exchanges, organize celebrations, and
+      share wishlists with the people who matter.
+    </p>
+    <div class="flex gap-2">
+      <a href="/" class={buttonVariants({ className: "px-5" })}>
+        Get started free
+        <ArrowRight />
+      </a>
+      <button
+        type="button"
+        class={buttonVariants({ variant: "outline", className: "px-5" })}
+      >
+        See how it works
+      </button>
+    </div>
+  </div>
+  <img src="/hero-gifts.svg" />
+</div>
+
+<style>
+  .heading-text {
+    font-size: clamp(1.5rem, 4vw + 1rem, 3.5rem);
+  }
+</style>

@@ -1,0 +1,10 @@
+---
+import Logo from "../Logo.astro";
+import { Navbar } from "./Navbar";
+---
+
+<div class="flex justify-between w-full px-5 pt-5 pb-1 text-sm items-center">
+  <Logo />
+  <Navbar client:load />
+</div>
+<hr class="bg-black block w-[95%] mx-auto" />

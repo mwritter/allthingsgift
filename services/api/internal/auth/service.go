@@ -44,7 +44,7 @@ func (c Config) withDefaults() Config {
 		c.EntryURL = strings.TrimRight(c.BaseURL, "/") + "/dashboard"
 	}
 	if c.ErrorURL == "" {
-		c.ErrorURL = strings.TrimRight(c.BaseURL, "/") + "/auth/error"
+		c.ErrorURL = strings.TrimRight(c.BaseURL, "/") + "/dashboard/auth/error"
 	}
 	if c.MagicLinkTTL == 0 {
 		c.MagicLinkTTL = 15 * time.Minute
