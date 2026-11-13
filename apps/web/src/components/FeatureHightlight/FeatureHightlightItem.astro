@@ -1,0 +1,21 @@
+---
+import { Heart, type AstroComponent } from "@lucide/astro";
+
+interface Props {
+  title: string;
+  description: string;
+  icon: any;
+}
+
+const { title, description, icon: Icon } = Astro.props;
+---
+
+<div class="flex gap-3 md:p-5 items-center md:not-last:border-r">
+  <div class="bg-primary/25 rounded-xl p-3">
+    <Icon size={35} class="text-primary" />
+  </div>
+  <div>
+    <p class="text-sm font-semibold">{title}</p>
+    <p class="text-xs">{description}</p>
+  </div>
+</div>
